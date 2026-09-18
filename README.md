@@ -21,6 +21,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 02 | Clúster local | Instalación de minikube/kubectl y creación de un clúster local | [🔗](02-local-cluster/README.md) |
 | 03 | Arquitectura | Componentes del plano de control y de los nodos de trabajo | [🔗](03-architecture/README.md) |
 | 04 | kubectl y la API | API REST de Kubernetes, CRUD de recursos, YAML y namespaces | [🔗](04-kubectl-api/README.md) |
+| 05 | Declarativo vs Imperativo | Manifiestos YAML vs comandos directos, GitOps y buenas prácticas | [🔗](05-declarative-vs-imperative/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -31,6 +32,8 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 ├── 📁 03-architecture/       # 🏛️ Arquitectura del clúster
 ├── 📁 04-kubectl-api/        # 🛠️ kubectl y la API de Kubernetes
 │   ├── 📄 simple-pod.yml     #   Pod de ejemplo (nginx)
+├── 📁 05-declarative/        # ⚖️ Declarativo vs Imperativo
+│   ├── 📄 mypod.yml          #   Pod de ejemplo
 └── 📄 README.md              # 📘 Este archivo
 ```
 
