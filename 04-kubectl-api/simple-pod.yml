@@ -1,12 +1,12 @@
-apiVersion: v1
-kind: Pod
+apiVersion: v1     # Versión de la API de Kubernetes para este recurso
+kind: Pod          # Define que el recurso a crear es un Pod (la unidad básica de despliegue)
 metadata:
-  name: lonely-pod
+  name: lonely-pod # Nombre único asignado al Pod dentro del namespace
   labels:
-    app: nginx
+    app: nginx     # Etiqueta clave-valor para organizar y seleccionar este recurso
 spec:
-  containers:
-    - name: nginx
-      image: nginx:latest
+  containers:      # Lista de contenedores que se ejecutarán dentro de este Pod
+    - name: nginx  # Nombre que se le da a este contenedor en específico
+      image: nginx:latest # Imagen oficial de Nginx que se descargará y ejecutará
       ports:
-      - containerPort: 80
+      - containerPort: 80 # Puerto interno expuesto por el contenedor (puerto web HTTP)
