@@ -23,6 +23,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 04 | kubectl y la API | API REST de Kubernetes, CRUD de recursos, YAML y namespaces | [🔗](04-kubectl-api/README.md) |
 | 05 | Declarativo vs Imperativo | Manifiestos YAML vs comandos directos, GitOps y buenas prácticas | [🔗](05-declarative-vs-imperative/README.md) |
 | 06 | Pods, ReplicaSets y Deployments | La jerarquía de recursos: Pods, escalado, rolling updates y rollback | [🔗](06-pods-replicasets-deployments/README.md) |
+| 07 | Services e Ingress | Exponer apps: Services (ClusterIP/NodePort/LB) y enrutamiento con Ingress | [🔗](07-service-ingress/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -38,6 +39,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 ├── 📁 06-pods-replicasets-deployments/  # 📦 Pods, ReplicaSets y Deployments
 │   ├── 📄 replicaset.yml                 #   ReplicaSet de nginx (3 réplicas)
 │   ├── 📄 deployment.yml                 #   Deployment hello-app (4 réplicas)
+├── 📁 07-service-ingress/               # 🌐 Services e Ingress
 └── 📄 README.md                       # 📘 Este archivo
 ```
 
