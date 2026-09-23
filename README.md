@@ -22,6 +22,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 03 | Arquitectura | Componentes del plano de control y de los nodos de trabajo | [🔗](03-architecture/README.md) |
 | 04 | kubectl y la API | API REST de Kubernetes, CRUD de recursos, YAML y namespaces | [🔗](04-kubectl-api/README.md) |
 | 05 | Declarativo vs Imperativo | Manifiestos YAML vs comandos directos, GitOps y buenas prácticas | [🔗](05-declarative-vs-imperative/README.md) |
+| 06 | Pods, ReplicaSets y Deployments | La jerarquía de recursos: Pods, escalado, rolling updates y rollback | [🔗](06-pods-replicasets-deployments/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -32,9 +33,12 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 ├── 📁 03-architecture/       # 🏛️ Arquitectura del clúster
 ├── 📁 04-kubectl-api/        # 🛠️ kubectl y la API de Kubernetes
 │   ├── 📄 simple-pod.yml     #   Pod de ejemplo (nginx)
-├── 📁 05-declarative/        # ⚖️ Declarativo vs Imperativo
-│   ├── 📄 mypod.yml          #   Pod de ejemplo
-└── 📄 README.md              # 📘 Este archivo
+├── 📁 05-declarative-vs-imperative/  # ⚖️ Declarativo vs Imperativo
+│   ├── 📄 mypod.yml                   #   Pod de ejemplo
+├── 📁 06-pods-replicasets-deployments/  # 📦 Pods, ReplicaSets y Deployments
+│   ├── 📄 replicaset.yml                 #   ReplicaSet de nginx (3 réplicas)
+│   ├── 📄 deployment.yml                 #   Deployment hello-app (4 réplicas)
+└── 📄 README.md                       # 📘 Este archivo
 ```
 
 ## 🧰 Herramientas necesarias
@@ -48,18 +52,27 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 ## ⚡ Mini cheat-sheet
 
 ```bash
-# Ver información del clúster y contextos
+# ── Información del clúster ──
 kubectl cluster-info
 kubectl config get-contexts
+kubectl config use-context <context-name>
 
-# Consultar recursos
+# ── Imperativo: acciones al momento ──
+kubectl run mypod --image=nginx
+kubectl delete pod mypod
+
+# ── Declarativo: manifiestos YAML ──
+kubectl apply -f mypod.yml
+kubectl diff -f mypod.yml       # qué cambiaría (sin aplicar)
+kubectl delete -f mypod.yml
+
+# ── Consultar recursos ──
 kubectl get pods
+kubectl get pods -n my-namespace
+kubectl describe pod <nombre>
 
-# Crear / modificar recursos desde YAML
-kubectl apply -f simple-pod.yml
-
-# Eliminar recursos
-kubectl delete pod lonely-pod
+# ── Namespaces ──
+kubectl create namespace mi-equipo
 ```
 
 > 💡 **Nota:** Los comandos de este curso se ejecutan desde **Bash** (Git Bash / WSL / Linux). Ajusta la sintaxis si trabajas con PowerShell.
