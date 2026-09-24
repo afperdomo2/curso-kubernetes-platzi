@@ -26,6 +26,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 07 | Services e Ingress | Exponer apps: Services (ClusterIP/NodePort/LB) y enrutamiento con Ingress | [🔗](07-service-ingress/README.md) |
 | 08 | ConfigMaps y Secrets | Configuración y datos sensibles inyectados a los contenedores | [🔗](08-configs-secrets/README.md) |
 | 09 | Networking | Modelo de red de K8s: CNI, kube-proxy, DNS interno y NetworkPolicies | [🔗](09-networking/README.md) |
+| 10 | Tipos de Services | ClusterIP, NodePort, LoadBalancer y ExternalName en detalle | [🔗](10-services-clusterip-nodeport-loadbalancer/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -46,6 +47,11 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   ├── 📄 auth-config.yml               #   ConfigMap (url de auth)
 │   ├── 📄 auth-secret.yml               #   Secret (client_id/client_secret)
 ├── 📁 09-networking/                    # 🌐 Networking
+├── 📁 10-services-clusterip-nodeport-loadbalancer/  # 🔀 Tipos de Services
+│   ├── 📄 deployment-clusterip.yaml              #   Deployment + Service ClusterIP
+│   ├── 📄 deployment-nodeport.yaml               #   Deployment + Service NodePort
+│   ├── 📄 deployment-loadbalancer.yaml           #   Deployment + Service LoadBalancer
+│   ├── 📄 externalname.yaml                      #   Service ExternalName (alias DNS)
 └── 📄 README.md                       # 📘 Este archivo
 ```
 
