@@ -8,7 +8,7 @@ Study-notes repository for the Platzi Kubernetes course. **Docs only** — there
 
 - Write all documentation in **Spanish** (course and existing notes are Spanish).
 - Course content lives in zero-padded numbered folders (`01-intro-k8s`, `02-local-cluster`, ...), one module per folder, each with its own `README.md`.
-- Every module folder (`01`–`07`) has a filled `README.md`.
+- Every module folder (`01`–`08`) has a filled `README.md`.
 - The root `README.md` has a module map table **and** a project-structure tree — update both (row + folder entry) every time a module is added or renamed.
 - YAML example files (e.g. `04-kubectl-api/simple-pod.yml`) may exist alongside a README; reference them from docs.
 - Use **Mermaid** (` ```mermaid ` fenced blocks) for *all* diagrams — flowcharts, sequence diagrams, etc. Diagrams are **optional**: add them only when a visual adds real value to the doc (architecture, flows, relationships), not to every README.

@@ -24,6 +24,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 05 | Declarativo vs Imperativo | Manifiestos YAML vs comandos directos, GitOps y buenas prácticas | [🔗](05-declarative-vs-imperative/README.md) |
 | 06 | Pods, ReplicaSets y Deployments | La jerarquía de recursos: Pods, escalado, rolling updates y rollback | [🔗](06-pods-replicasets-deployments/README.md) |
 | 07 | Services e Ingress | Exponer apps: Services (ClusterIP/NodePort/LB) y enrutamiento con Ingress | [🔗](07-service-ingress/README.md) |
+| 08 | ConfigMaps y Secrets | Configuración y datos sensibles inyectados a los contenedores | [🔗](08-configs-secrets/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -40,6 +41,9 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   ├── 📄 replicaset.yml                 #   ReplicaSet de nginx (3 réplicas)
 │   ├── 📄 deployment.yml                 #   Deployment hello-app (4 réplicas)
 ├── 📁 07-service-ingress/               # 🌐 Services e Ingress
+├── 📁 08-configs-secrets/               # 🗂️ ConfigMaps y Secrets
+│   ├── 📄 auth-config.yml               #   ConfigMap (url de auth)
+│   ├── 📄 auth-secret.yml               #   Secret (client_id/client_secret)
 └── 📄 README.md                       # 📘 Este archivo
 ```
 

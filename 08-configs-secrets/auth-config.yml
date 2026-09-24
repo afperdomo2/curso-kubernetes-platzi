@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+data:
+  url: "https://auth.service.local"
+  timeout: "30s"
+  retries: "3"
+  log_level: "info"
