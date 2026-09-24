@@ -25,6 +25,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 06 | Pods, ReplicaSets y Deployments | La jerarquía de recursos: Pods, escalado, rolling updates y rollback | [🔗](06-pods-replicasets-deployments/README.md) |
 | 07 | Services e Ingress | Exponer apps: Services (ClusterIP/NodePort/LB) y enrutamiento con Ingress | [🔗](07-service-ingress/README.md) |
 | 08 | ConfigMaps y Secrets | Configuración y datos sensibles inyectados a los contenedores | [🔗](08-configs-secrets/README.md) |
+| 09 | Networking | Modelo de red de K8s: CNI, kube-proxy, DNS interno y NetworkPolicies | [🔗](09-networking/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -44,6 +45,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 ├── 📁 08-configs-secrets/               # 🗂️ ConfigMaps y Secrets
 │   ├── 📄 auth-config.yml               #   ConfigMap (url de auth)
 │   ├── 📄 auth-secret.yml               #   Secret (client_id/client_secret)
+├── 📁 09-networking/                    # 🌐 Networking
 └── 📄 README.md                       # 📘 Este archivo
 ```
 
