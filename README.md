@@ -27,6 +27,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 08 | ConfigMaps y Secrets | Configuración y datos sensibles inyectados a los contenedores | [🔗](08-configs-secrets/README.md) |
 | 09 | Networking | Modelo de red de K8s: CNI, kube-proxy, DNS interno y NetworkPolicies | [🔗](09-networking/README.md) |
 | 10 | Tipos de Services | ClusterIP, NodePort, LoadBalancer y ExternalName en detalle | [🔗](10-services-clusterip-nodeport-loadbalancer/README.md) |
+| 11 | Almacenamiento | Volumes, PersistentVolume, PersistentVolumeClaim y StorageClass | [🔗](11-storage-pv-pvc/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -52,6 +53,10 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   ├── 📄 deployment-nodeport.yaml               #   Deployment + Service NodePort
 │   ├── 📄 deployment-loadbalancer.yaml           #   Deployment + Service LoadBalancer
 │   ├── 📄 externalname.yaml                      #   Service ExternalName (alias DNS)
+├── 📁 11-storage-pv-pvc/                        # 💾 Almacenamiento (PV/PVC)
+│   ├── 📄 pv-pvc.yaml                           #   PersistentVolume + PersistentVolumeClaim
+│   ├── 📄 pod.yaml                              #   Pod nginx que monta el PVC
+│   ├── 📁 tmp-files/                            #   Contenido estático (index.html)
 └── 📄 README.md                       # 📘 Este archivo
 ```
 

@@ -1,0 +1,15 @@
+apiVersion: v1          # versión de API; los Pod viven en el grupo "core" (v1)
+kind: Pod               # tipo de recurso
+metadata:
+  name: my-pod          # nombre del Pod
+spec:
+  containers:
+    - name: my-container
+      image: nginx      # imagen de Docker a ejecutar
+      volumeMounts:     # DÓNDE se ve el volumen dentro del contenedor
+        - mountPath: /usr/share/nginx/html   # carpeta dentro del contenedor
+          name: my-storage                   # debe coincidir con un volume de abajo
+  volumes:              # QUÉ volúmenes tiene el Pod
+    - name: my-storage                       # nombre interno (el enlace con volumeMounts)
+      persistentVolumeClaim:
+        claimName: my-pvc                    # usa el PVC llamado my-pvc

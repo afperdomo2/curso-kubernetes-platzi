@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-pv
+  labels:               # etiquetas para que el PVC lo pueda seleccionar
+    type: local
+    app: nginx-storage
+spec:
+  capacity:
+    storage: 1Gi             # tamaño que ofrece
+  accessModes:
+    - ReadWriteOnce          # solo UN nodo puede montarlo en lectura/escritura
+  storageClassName: manual   # etiqueta de "clase"; aquí es solo un nombre para emparejar
+  hostPath:                  # tipo de almacenamiento: carpeta del nodo
+    path: /mnt/data          # ruta en el nodo
+    type: Directory          # la carpeta debe existir ya, si no el Pod falla
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc               # el nombre que usa el Pod en claimName
+spec:
+  storageClassName: manual   # debe ser igual al del PV
+  selector:
+    matchLabels:             # solo acepta PV con estas etiquetas
+      type: local
+      app: nginx-storage
+  accessModes:
+    - ReadWriteOnce          # debe ser compatible con el PV
+  resources:
+    requests:
+      storage: 1Gi           # pide al menos 1Gi
