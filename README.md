@@ -28,6 +28,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 09 | Networking | Modelo de red de K8s: CNI, kube-proxy, DNS interno y NetworkPolicies | [🔗](09-networking/README.md) |
 | 10 | Tipos de Services | ClusterIP, NodePort, LoadBalancer y ExternalName en detalle | [🔗](10-services-clusterip-nodeport-loadbalancer/README.md) |
 | 11 | Almacenamiento | Volumes, PersistentVolume, PersistentVolumeClaim y StorageClass | [🔗](11-storage-pv-pvc/README.md) |
+| 12 | DaemonSets y StatefulSets | Controladores para agentes por nodo y apps con estado/identidad | [🔗](12-daemonsets-statefulsets/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -57,6 +58,10 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   ├── 📄 pv-pvc.yaml                           #   PersistentVolume + PersistentVolumeClaim
 │   ├── 📄 pod.yaml                              #   Pod nginx que monta el PVC
 │   ├── 📁 tmp-files/                            #   Contenido estático (index.html)
+├── 📁 12-daemonsets-statefulsets/               # 🔁 DaemonSets y StatefulSets
+│   ├── 📄 daemonset.yaml                        #   DaemonSet nginx (1 pod por nodo)
+│   ├── 📄 statefulset.yaml                      #   StatefulSet nginx + headless Service
+│   ├── 📄 pv-pvc.yaml                           #   PV + PVC usados por el StatefulSet
 └── 📄 README.md                       # 📘 Este archivo
 ```
 

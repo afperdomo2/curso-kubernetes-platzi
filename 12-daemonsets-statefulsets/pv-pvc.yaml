@@ -1,0 +1,35 @@
+# ============ PersistentVolume: el almacenamiento REAL ============
+apiVersion: v1                  # los PV pertenecen al grupo core (v1)
+kind: PersistentVolume
+metadata:
+  name: nginx-pv                # nombre del PV (no tiene namespace)
+  labels:                       # etiquetas que el PVC usará para encontrarlo
+    type: local
+    app: nginx-app
+spec:
+  capacity:
+    storage: 1Gi                # tamaño que ofrece
+  accessModes:
+    - ReadWriteOnce             # lectura/escritura desde UN solo nodo a la vez
+  storageClassName: manual      # nombre de clase; debe ser igual al del PVC
+  hostPath:                     # tipo de almacenamiento: una carpeta del nodo
+    path: /mnt/data             # ruta dentro del nodo
+    type: Directory             # la carpeta debe existir; si no, el Pod no arranca
+---
+# ============ PersistentVolumeClaim: la SOLICITUD de almacenamiento ============
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx-pvc               # el StatefulSet lo referencia con claimName: nginx-pvc
+                                # (vive en un namespace; por defecto "default")
+spec:
+  storageClassName: manual      # solo busca PV de esta clase
+  selector:
+    matchLabels:                # solo acepta PV que tengan TODAS estas labels
+      type: local
+      app: nginx-app
+  accessModes:
+    - ReadWriteOnce             # debe ser compatible con el PV
+  resources:
+    requests:
+      storage: 1Gi              # pide al menos 1Gi (el PV ofrece 1Gi, alcanza justo)

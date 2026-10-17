@@ -1,0 +1,26 @@
+apiVersion: apps/v1     # los DaemonSet viven en el grupo "apps" (no en v1 a secas)
+kind: DaemonSet
+metadata:
+  name: nginx-ds        # los Pods se llamarán nginx-ds-xxxxx (sufijo aleatorio)
+spec:
+  selector:
+    matchLabels:
+      app: nginx-app    # "los Pods que son MÍOS son los que tienen esta etiqueta"
+  template:             # plantilla del Pod que se creará en cada nodo
+    metadata:
+      labels:
+        app: nginx-app  # DEBE coincidir con el selector de arriba
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80   # puerto que escucha nginx
+          name: http          # nombre del puerto (para referenciarlo en un Service)
+        resources:
+          requests:           # lo MÍNIMO que reservo
+            memory: "64Mi"
+            cpu: "250m"
+          limits:             # lo MÁXIMO que puedo usar
+            memory: "128Mi"
+            cpu: "500m"

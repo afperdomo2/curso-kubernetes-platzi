@@ -1,0 +1,50 @@
+# ============ StatefulSet ============
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nginx-sts               # los Pods se llamarán nginx-sts-0, nginx-sts-1 (¡nombres fijos!)
+spec:
+  serviceName: nginx-service    # Service headless que da el DNS a cada Pod (debe coincidir)
+  replicas: 2                   # crea 2 Pods: primero el 0, y cuando está Ready, el 1
+  selector:
+    matchLabels:
+      app: nginx-app            # cómo reconoce sus Pods
+  template:                     # plantilla de cada Pod
+    metadata:
+      labels:
+        app: nginx-app          # debe coincidir con el selector
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80     # puerto de nginx (informativo)
+          name: http            # nombre del puerto
+        resources:
+          requests:             # reserva mínima por Pod
+            memory: "64Mi"
+            cpu: "250m"         # 0.25 CPU
+          limits:               # techo por Pod
+            memory: "128Mi"     # si lo pasa: OOMKilled
+            cpu: "500m"         # si lo pasa: throttling
+        volumeMounts:
+        - name: nginx-storage   # nombre del volumen definido abajo
+          mountPath: /usr/share/nginx/html   # dónde se ve dentro del contenedor
+      volumes:
+      - name: nginx-storage
+        persistentVolumeClaim:
+          claimName: nginx-pvc  # usa el PVC que creaste antes (mismo para las 2 réplicas)
+---
+# ============ Service headless ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service           # igual a serviceName del StatefulSet
+spec:
+  clusterIP: None               # headless: sin IP virtual ni balanceo
+  selector:
+    app: nginx-app              # agrupa los Pods con esta etiqueta
+  ports:
+  - port: 80                    # puerto del Service
+    name: http
+    targetPort: 80              # puerto del contenedor
