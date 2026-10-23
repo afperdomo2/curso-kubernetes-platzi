@@ -1,0 +1,20 @@
+# =============================================================================
+# FRONTEND · Service (LoadBalancer)
+# -----------------------------------------------------------------------------
+# Expone el Pod de nginx hacia fuera con un nombre estable. En minikube el
+# LoadBalancer no tiene IP real hasta usar `minikube tunnel` o `minikube service`.
+#   kubectl apply -f k8s/frontend/service.yaml
+#   minikube service frontend-service
+# =============================================================================
+apiVersion: v1              # API core para Services
+kind: Service               # Tipo de recurso
+metadata:
+  name: frontend-service    # Nombre = DNS interno: frontend-service[.namespace]
+spec:
+  selector:                 # Pods a los que enruta este Service
+    app: frontend           # Todos los Pods con label app=frontend
+  ports:
+    - protocol: TCP         # Protocolo (TCP por defecto)
+      port: 80              # Puerto DEL SERVICE (el que piden los clientes)
+      targetPort: 80        # Puerto DEL CONTENEDOR (nginx) al que se reenvía
+  type: LoadBalancer        # Expone una IP externa; en local → minikube tunnel

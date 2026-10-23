@@ -29,6 +29,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 10 | Tipos de Services | ClusterIP, NodePort, LoadBalancer y ExternalName en detalle | [🔗](10-services-clusterip-nodeport-loadbalancer/README.md) |
 | 11 | Almacenamiento | Volumes, PersistentVolume, PersistentVolumeClaim y StorageClass | [🔗](11-storage-pv-pvc/README.md) |
 | 12 | DaemonSets y StatefulSets | Controladores para agentes por nodo y apps con estado/identidad | [🔗](12-daemonsets-statefulsets/README.md) |
+| 13 | App multi-tier | Frontend + backend: imágenes locales, Deployments y Services | [🔗](13-multi-tier/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -62,6 +63,13 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   ├── 📄 daemonset.yaml                        #   DaemonSet nginx (1 pod por nodo)
 │   ├── 📄 statefulset.yaml                      #   StatefulSet nginx + headless Service
 │   ├── 📄 pv-pvc.yaml                           #   PV + PVC usados por el StatefulSet
+├── 📁 13-multi-tier/                            # 🧱 App multi-tier (frontend + backend)
+│   ├── 📁 curso-de-docker-fundamentos/          #   Código: Flask + nginx + docker-compose
+│   │   ├── 📄 docker-compose.yml                #     Prueba local de las 2 capas
+│   │   ├── 📁 backend/                          #     API Flask (/getMyInfo, :5001)
+│   │   ├── 📁 frontend/                         #     nginx + linktree.html
+│   │   ├── 📁 k8s/backend/                      #     Deployment + Service del backend
+│   │   └── 📁 k8s/frontend/                     #     Deployment + Service del frontend
 └── 📄 README.md                       # 📘 Este archivo
 ```
 

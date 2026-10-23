@@ -1,0 +1,26 @@
+# =============================================================================
+# BACKEND · Service (LoadBalancer)
+# -----------------------------------------------------------------------------
+# Un Service da un nombre DNS y una IP estables a un conjunto de Pods que
+# cambian (se recrean, escalan, mueven...). Los Pods se encuentran por etiqueta.
+#   kubectl apply -f k8s/backend/service.yaml
+#   kubectl get svc backend-service
+# =============================================================================
+apiVersion: v1                # Los Services usan la API core (v1)
+kind: Service                 # Tipo de recurso
+metadata:
+  name: backend-service       # Nombre = DNS interno: backend-service[.namespace]
+spec:
+  selector:                   # ¿A qué Pods enruta este Service?
+    app: backend              # Manda tráfico a todo Pod con label app=backend
+                              # (si no coincide → Endpoints: <none>)
+  ports:
+    - protocol: TCP           # Protocolo del puerto (TCP por defecto)
+      port: 5001              # Puerto DEL SERVICE (lo que ven los clientes)
+      targetPort: 5001        # Puerto DEL CONTENEDOR al que se reenvía
+  type: LoadBalancer          # Tipo de Service:
+                              #  ClusterIP    → solo dentro del clúster (default)
+                              #  NodePort     → abre un puerto en cada nodo
+                              #  LoadBalancer → IP externa (en minikube:
+                              #                 minikube tunnel / minikube service)
+                              #  ExternalName → alias DNS a un host externo

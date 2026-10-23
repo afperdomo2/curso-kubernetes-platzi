@@ -1,0 +1,42 @@
+# =============================================================================
+# BACKEND · Deployment (API Flask en el puerto 5001)
+# -----------------------------------------------------------------------------
+# Un Deployment es el dueño de los Pods: crea las réplicas, las reemplaza si
+# mueren y gestiona las actualizaciones. Aquí se declara el estado deseado.
+#   kubectl apply -f k8s/backend/deployment.yaml
+# =============================================================================
+apiVersion: apps/v1              # Grupo/versión de la API para Deployments
+kind: Deployment                 # Tipo de recurso (apps/v1 → Deployment)
+metadata:
+  name: backend-deployment       # Nombre del Deployment (único en el namespace)
+  labels:
+    app: backend                 # Etiqueta del propio Deployment (organización,
+                                 # no se usa para seleccionar Pods)
+spec:                            # "Estado deseado" del Deployment
+  replicas: 1                    # Cuántos Pods deben existir simultáneamente
+  selector:
+    matchLabels:
+      app: backend               # Debe coincidir con template.metadata.labels;
+                                 # si no coincide, la API rechaza el manifiesto
+  template:                      # Plantilla con la que se crea cada Pod
+    metadata:
+      labels:
+        app: backend             # Etiqueta de los Pods: es la que usan el
+                                 # selector de arriba y el Service
+    spec:                        # Especificación del Pod (como un Pod normal)
+      containers:                # Lista de contenedores del Pod (aquí solo 1)
+      - name: backend            # Nombre del contenedor dentro del Pod
+        image: backend:latest    # Imagen construida localmente con docker-compose
+        ports:
+        - containerPort: 5001    # Puerto que expone Flask dentro del contenedor
+                                 # (informativo; no abre nada por sí solo)
+        imagePullPolicy: Never   # No intentar descargar la imagen: usa la que ya
+                                 # está en el nodo (minikube docker-env). Evita
+                                 # ImagePullBackOff al usar una imagen local
+        resources:               # CPU/RAM solicitados y máximos del contenedor
+          requests:              # Lo que el scheduler RESERVA en el nodo
+            cpu: "50m"            # 50 milicores = 0,05 CPU
+            memory: "128Mi"       # 128 MiB de memoria
+          limits:                # Techo: si se supera la RAM, el Pod se reinicia
+            cpu: "200m"           # 0,2 CPU (se limita el uso, no se mata el Pod)
+            memory: "256Mi"       # Si supera 256 MiB → OOMKilled

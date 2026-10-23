@@ -1,3 +1,12 @@
+# =============================================================================
+# POD · La unidad mínima de despliegue
+# -----------------------------------------------------------------------------
+# Un Pod = uno o más contenedores que comparten red y almacenamiento.
+# Aquí: un único contenedor nginx.
+#   kubectl apply -f simple-pod.yml
+#   kubectl get pod lonely-pod
+#   kubectl describe pod lonely-pod
+# =============================================================================
 apiVersion: v1     # Versión de la API de Kubernetes para este recurso
 kind: Pod          # Define que el recurso a crear es un Pod (la unidad básica de despliegue)
 metadata:
@@ -10,3 +19,4 @@ spec:
       image: nginx:latest # Imagen oficial de Nginx que se descargará y ejecutará
       ports:
       - containerPort: 80 # Puerto interno expuesto por el contenedor (puerto web HTTP)
+                          # Informativo: no publica nada; para eso hace falta un Service

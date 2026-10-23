@@ -1,0 +1,30 @@
+# =============================================================================
+# FRONTEND · Deployment (nginx sirviendo el linktree estático en el puerto 80)
+# -----------------------------------------------------------------------------
+# Igual que el Deployment del backend: mantiene 1 Pod vivo y permite escalar,
+# actualizar y volver atrás. El Pod ejecuta nginx con el contenido de sitio/.
+#   kubectl apply -f k8s/frontend/deployment.yaml
+# =============================================================================
+apiVersion: apps/v1              # Grupo/versión de la API para Deployments
+kind: Deployment                 # Tipo de recurso
+metadata:
+  name: frontend-deployment      # Nombre del Deployment
+  labels:
+    app: frontend                # Etiqueta del Deployment (no selecciona Pods)
+spec:                            # Estado deseado
+  replicas: 1                    # Pods a mantener en ejecución
+  selector:
+    matchLabels:
+      app: frontend              # Debe coincidir con template.metadata.labels
+  template:                      # Plantilla del Pod
+    metadata:
+      labels:
+        app: frontend            # Etiqueta del Pod: la usan selector y Service
+    spec:
+      containers:
+      - name: frontend           # Nombre del contenedor
+        image: frontend:latest   # Imagen nginx + sitio/ construida localmente
+        ports:
+        - containerPort: 80      # nginx escucha en el 80 dentro del contenedor
+        imagePullPolicy: Never   # Usa la imagen ya presente en el nodo de
+                                 # minikube; nunca la descarga de un registry
