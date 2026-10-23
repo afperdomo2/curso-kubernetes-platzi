@@ -1,3 +1,11 @@
+# =============================================================================
+# PV + PVC · Almacenamiento para el StatefulSet
+# -----------------------------------------------------------------------------
+# El PV ofrece 1Gi desde /mnt/data del nodo y el PVC lo reclama.
+# El StatefulSet lo monta con claimName: nginx-pvc.
+#   kubectl apply -f pv-pvc.yaml
+#   kubectl get pv,pvc
+# =============================================================================
 # ============ PersistentVolume: el almacenamiento REAL ============
 apiVersion: v1                  # los PV pertenecen al grupo core (v1)
 kind: PersistentVolume

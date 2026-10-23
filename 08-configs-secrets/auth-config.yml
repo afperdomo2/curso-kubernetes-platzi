@@ -1,9 +1,17 @@
-apiVersion: v1
-kind: ConfigMap
+# =============================================================================
+# CONFIGMAP · Configuración no sensible
+# -----------------------------------------------------------------------------
+# Guarda pares clave-valor (URLs, flags, timeouts...) para inyectarlos a los
+# Pods sin reconstruir la imagen. No cifra nada.
+#   kubectl apply -f auth-config.yml
+#   kubectl get configmap auth-config -o yaml
+# =============================================================================
+apiVersion: v1                # API core (v1)
+kind: ConfigMap               # Configuración no sensible
 metadata:
-  name: auth-config
-data:
-  url: "https://auth.service.local"
-  timeout: "30s"
-  retries: "3"
-  log_level: "info"
+  name: auth-config           # Nombre con el que se inyecta en los Pods (configMapRef)
+data:                         # Claves y valores (todo se trata como texto)
+  url: "https://auth.service.local"   # ej. URL del servicio de autenticación
+  timeout: "30s"                      # ej. timeout de las peticiones
+  retries: "3"                        # ej. número de reintentos
+  log_level: "info"                   # ej. nivel de logs

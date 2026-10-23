@@ -1,35 +1,47 @@
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# LOADBALANCER · Deployment + Service
+# -----------------------------------------------------------------------------
+# LoadBalancer = pide una IP externa (en la nube: AWS ELB, GCP LB, Azure LB).
+# Por debajo crea un NodePort + un ClusterIP, y encima el balanceador externo.
+# En local:
+#   🐳 Docker Desktop → asigna EXTERNAL-IP = localhost automáticamente
+#   🌀 minikube        → requiere `minikube tunnel` en otra terminal
+#
+#   kubectl apply -f deployment-loadbalancer.yaml
+#   kubectl get svc hello-service-loadbalancer
+# =============================================================================
+apiVersion: apps/v1              # Grupo/versión de la API para Deployments
+kind: Deployment                 # Dueño de los Pods
 metadata:
-  name: hello-deployment-loadbalancer
+  name: hello-deployment-loadbalancer   # Nombre del Deployment
   labels:
-    app: hello
+    app: hello                   # Etiqueta del Deployment (no selecciona Pods)
 spec:
-  replicas: 2
+  replicas: 2                    # 2 Pods idénticos en ejecución
   selector:
     matchLabels:
-      app: hello-loadbalancer
-  template:
+      app: hello-loadbalancer    # Debe coincidir con template.metadata.labels
+  template:                      # Plantilla del Pod
     metadata:
       labels:
-        app: hello-loadbalancer
+        app: hello-loadbalancer  # Etiqueta de los Pods: la usan selector y Service
     spec:
       containers:
-        - name: hello-app
-          image: gcr.io/google-samples/hello-app:2.0
+        - name: hello-app        # Nombre del contenedor
+          image: gcr.io/google-samples/hello-app:2.0   # Imagen de ejemplo (versión 2.0)
           ports:
-            - containerPort: 8080
-
+            - containerPort: 8080    # Puerto de la app dentro del contenedor
 ---
-apiVersion: v1
-kind: Service
+apiVersion: v1                   # API core para Services
+kind: Service                    # IP/DNS estable + balanceo
 metadata:
-  name: hello-service-loadbalancer
+  name: hello-service-loadbalancer   # Nombre del Service
 spec:
-  type: LoadBalancer
+  type: LoadBalancer             # Pide una IP externa al proveedor (o a Docker Desktop)
   selector:
-    app: hello-loadbalancer
+    app: hello-loadbalancer      # Pods a los que enruta (label app=hello-loadbalancer)
   ports:
-    - port: 80
-      protocol: TCP
-      targetPort: 8080
+    - port: 80                   # Puerto DEL SERVICE: el que publica el balanceador
+      protocol: TCP              # Protocolo del puerto (TCP por defecto; también UDP/SCTP)
+      targetPort: 8080           # Puerto DEL CONTENEDOR al que se reenvía
+      # nodePort: no se especifica → Kubernetes asigna uno automáticamente

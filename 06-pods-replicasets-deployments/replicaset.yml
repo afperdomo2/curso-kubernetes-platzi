@@ -1,21 +1,29 @@
+# =============================================================================
+# REPLICASET · Garantiza N réplicas de un Pod
+# -----------------------------------------------------------------------------
+# Es la pieza que un Deployment crea por debajo. Rara vez se usa directo,
+# porque NO hace rolling updates (para eso está el Deployment).
+#   kubectl apply -f replicaset.yml
+#   kubectl get rs,pods
+# =============================================================================
 apiVersion: apps/v1
-kind: ReplicaSet
+kind: ReplicaSet                 # Mantiene el número de Pods deseado
 metadata:
-  name: nginx-replicaset
+  name: nginx-replicaset         # Nombre del ReplicaSet
   labels:
-    app: nginx
+    app: nginx                   # Etiqueta del ReplicaSet (no selecciona Pods)
 spec:
-  replicas: 4
+  replicas: 4                    # Número de Pods a mantener
   selector:
     matchLabels:
-      app: nginx
-  template:
+      app: nginx                 # Debe coincidir con template.metadata.labels
+  template:                      # Plantilla con la que se crean los Pods
     metadata:
       labels:
-        app: nginx
+        app: nginx               # Etiqueta de los Pods
     spec:
       containers:
       - name: nginx
         image: nginx:latest
         ports:
-        - containerPort: 80
+        - containerPort: 80      # Puerto HTTP de nginx dentro del contenedor (informativo)

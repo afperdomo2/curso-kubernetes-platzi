@@ -1,21 +1,30 @@
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# DEPLOYMENT · Dueño de ReplicaSets y Pods (apps stateless)
+# -----------------------------------------------------------------------------
+# Mantiene N réplicas, permite escalar, hacer rolling updates y rollback.
+#   kubectl apply -f deployment.yml
+#   kubectl get deploy,rs,pods
+#   kubectl scale deploy hello-deployment --replicas=6
+#   kubectl rollout undo deploy hello-deployment
+# =============================================================================
+apiVersion: apps/v1              # Los Deployments viven en el grupo "apps"
+kind: Deployment                 # Controlador que gestiona ReplicaSets y Pods
 metadata:
-  name: hello-deployment
+  name: hello-deployment         # Nombre del Deployment
   labels:
-    app: hello
+    app: hello                   # Etiqueta del Deployment (no selecciona Pods)
 spec:
-  replicas: 4
+  replicas: 4                    # 4 Pods idénticos en ejecución
   selector:
     matchLabels:
-      app: hello
-  template:
+      app: hello                 # Debe coincidir con template.metadata.labels
+  template:                      # Plantilla con la que se crean los Pods
     metadata:
       labels:
-        app: hello
+        app: hello               # Etiqueta de los Pods (la usan selector y Services)
     spec:
       containers:
-      - name: hello-app
-        image: gcr.io/google-samples/hello-app:1.0
+      - name: hello-app          # Nombre del contenedor
+        image: gcr.io/google-samples/hello-app:1.0   # Imagen de ejemplo (versión 1.0)
         ports:
-        - containerPort: 8080
+        - containerPort: 8080    # Puerto de la app dentro del contenedor (informativo)

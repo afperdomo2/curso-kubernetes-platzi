@@ -1,3 +1,11 @@
+# =============================================================================
+# STATEFULSET + SERVICE HEADLESS · Identidad y almacenamiento estables
+# -----------------------------------------------------------------------------
+# Pods con nombre fijo (nginx-sts-0, -1...), orden de arranque y DNS propio.
+# Ideal para bases de datos y colas.
+#   kubectl apply -f statefulset.yaml
+#   kubectl get sts,pods,svc
+# =============================================================================
 # ============ StatefulSet ============
 apiVersion: apps/v1
 kind: StatefulSet

@@ -1,3 +1,10 @@
+# =============================================================================
+# POD + PVC · Consumir almacenamiento persistente desde un contenedor
+# -----------------------------------------------------------------------------
+# El Pod monta el PVC (my-pvc) en /usr/share/nginx/html.
+#   kubectl apply -f pod.yaml
+#   kubectl port-forward my-pod 8080:80   →  http://localhost:8080
+# =============================================================================
 apiVersion: v1          # versión de API; los Pod viven en el grupo "core" (v1)
 kind: Pod               # tipo de recurso
 metadata:

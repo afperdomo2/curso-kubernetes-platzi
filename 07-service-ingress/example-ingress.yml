@@ -1,17 +1,25 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+# =============================================================================
+# INGRESS · Enrutamiento HTTP por host/path (un solo entrypoint)
+# -----------------------------------------------------------------------------
+# Requiere un Ingress Controller (p. ej. ingress-nginx) que lo procese.
+# Aquí: las peticiones a hello-world.example → Service "web" en el puerto 8080.
+#   kubectl apply -f example-ingress.yml
+#   kubectl get ingress
+# =============================================================================
+apiVersion: networking.k8s.io/v1   # API de Ingress (grupo networking)
+kind: Ingress                      # Regla de enrutamiento HTTP/HTTPS
 metadata:
-  name: example-ingress
+  name: example-ingress            # Nombre del Ingress
 spec:
-  ingressClassName: nginx
-  rules:
-    - host: hello-world.example
-      http:
+  ingressClassName: nginx          # Qué controlador lo procesa (IngressClass "nginx")
+  rules:                           # Lista de reglas (host + paths)
+    - host: hello-world.example    # Dominio al que aplica (se compara el header Host)
+      http:                        # Reglas HTTP
         paths:
-          - path: /
-            pathType: Prefix
-            backend:
+          - path: /                # Ruta dentro del host ("/" = todo)
+            pathType: Prefix        # Prefix: "/" coincide con cualquier subruta
+            backend:               # A dónde se envía el tráfico
               service:
-                name: web
+                name: web          # Service destino (debe existir en el namespace)
                 port:
-                  number: 8080
+                  number: 8080     # Puerto DEL SERVICE destino

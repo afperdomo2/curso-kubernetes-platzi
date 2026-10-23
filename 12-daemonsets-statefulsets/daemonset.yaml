@@ -1,3 +1,12 @@
+# =============================================================================
+# DAEMONSET · Un Pod en CADA nodo
+# -----------------------------------------------------------------------------
+# Ideal para agentes: logs, métricas, red, almacenamiento...
+# El número de Pods = número de nodos (NO se usa `replicas`).
+#   kubectl apply -f daemonset.yaml
+#   kubectl get ds
+#   kubectl get pods -l app=nginx-app -o wide
+# =============================================================================
 apiVersion: apps/v1     # los DaemonSet viven en el grupo "apps" (no en v1 a secas)
 kind: DaemonSet
 metadata:

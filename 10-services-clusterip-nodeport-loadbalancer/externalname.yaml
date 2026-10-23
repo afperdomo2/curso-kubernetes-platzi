@@ -1,7 +1,22 @@
-apiVersion: v1
-kind: Service
+# =============================================================================
+# EXTERNALNAME · Service sin Pods (alias DNS)
+# -----------------------------------------------------------------------------
+# No enruta tráfico a Pods: resuelve el NOMBRE del Service a un dominio EXTERNO.
+# Por eso no lleva `selector` ni `ports`: es solo un alias DNS.
+# Útil para conectar la app del clúster con algo de fuera (BD gestionada, API...).
+#
+#   kubectl apply -f externalname.yaml
+#
+# Comprobar la resolución desde un Pod:
+#   kubectl run test --rm -it --image=busybox --restart=Never -- nslookup my-database-service
+# =============================================================================
+apiVersion: v1                   # API core para Services
+kind: Service                    # Service especial: alias, no balanceo
 metadata:
-  name: my-database-service
+  name: my-database-service      # Nombre que usarán las apps DENTRO del clúster
 spec:
-  type: ExternalName
+  type: ExternalName             # Alias DNS hacia un nombre externo
   externalName: my-database.cluster-abcdef123456.us-west-2.rds.amazonaws.com
+                                 # Destino real (aquí un RDS de AWS de ejemplo).
+                                 # Si el endpoint cambia, solo editas esta línea:
+                                 # el código interno sigue usando "my-database-service".

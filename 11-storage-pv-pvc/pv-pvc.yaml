@@ -1,3 +1,12 @@
+# =============================================================================
+# PV + PVC · Almacenamiento estático (el Pod pide, el PV provee)
+# -----------------------------------------------------------------------------
+# PersistentVolume (PV)      = el almacenamiento real del clúster.
+# PersistentVolumeClaim (PVC)= la solicitud de un usuario/Pod.
+# Se enlazan (bind) si coinciden tamaño, accessMode, storageClass y labels.
+#   kubectl apply -f pv-pvc.yaml
+#   kubectl get pv,pvc
+# =============================================================================
 apiVersion: v1
 kind: PersistentVolume
 metadata:

@@ -1,34 +1,44 @@
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# CLUSTERIP · Deployment + Service (el tipo por defecto)
+# -----------------------------------------------------------------------------
+# ClusterIP = IP interna del clúster. Solo accesible desde otros Pods.
+# No se abre al navegador; para probarlo desde tu máquina usa un túnel:
+#   kubectl port-forward service/hello-service-clusterip 8080:80
+# O desde dentro del clúster:
+#   kubectl run test --rm -it --image=busybox --restart=Never -- wget -qO- http://hello-service-clusterip
+#
+#   kubectl apply -f deployment-clusterip.yaml
+# =============================================================================
+apiVersion: apps/v1              # Grupo/versión de la API para Deployments
+kind: Deployment                 # Dueño de los Pods: réplicas, updates y rollback
 metadata:
-  name: hello-deployment-clusterip
+  name: hello-deployment-clusterip   # Nombre único dentro del namespace
   labels:
-    app: hello
+    app: hello                   # Etiqueta del Deployment (no selecciona Pods)
 spec:
-  replicas: 2
+  replicas: 2                    # Mantener 2 Pods idénticos en ejecución
   selector:
     matchLabels:
-      app: hello-clusterip
-  template:
+      app: hello-clusterip       # Debe coincidir con template.metadata.labels
+  template:                      # Plantilla con la que se crea cada Pod
     metadata:
       labels:
-        app: hello-clusterip
-    spec:
+        app: hello-clusterip     # Etiqueta de los Pods: la usan el selector y el Service
+    spec:                        # Especificación del Pod (como un Pod normal)
       containers:
-        - name: hello-app
-          image: gcr.io/google-samples/hello-app:2.0
+        - name: hello-app        # Nombre del contenedor dentro del Pod
+          image: gcr.io/google-samples/hello-app:2.0   # Imagen de ejemplo (versión 2.0)
           ports:
-            - containerPort: 8080
-
+            - containerPort: 8080    # Puerto donde escucha la app (informativo)
 ---
-apiVersion: v1
-kind: Service
+apiVersion: v1                   # Los Services usan la API core (v1)
+kind: Service                    # Da una IP y un DNS estables a los Pods
 metadata:
-  name: hello-service-clusterip
+  name: hello-service-clusterip  # Nombre = DNS interno: hello-service-clusterip[.namespace]
 spec:
-  type: ClusterIP
+  type: ClusterIP                # (default) IP virtual SOLO accesible dentro del clúster
   selector:
-    app: hello-clusterip
+    app: hello-clusterip         # Envía tráfico a todo Pod con esta label
   ports:
-    - port: 80
-      targetPort: 8080
+    - port: 80                   # Puerto DEL SERVICE (lo que ven los clientes internos)
+      targetPort: 8080           # Puerto DEL CONTENEDOR al que se reenvía

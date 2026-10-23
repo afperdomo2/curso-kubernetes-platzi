@@ -1,35 +1,45 @@
-apiVersion: apps/v1
-kind: Deployment
+# =============================================================================
+# NODEPORT · Deployment + Service
+# -----------------------------------------------------------------------------
+# NodePort = abre un puerto fijo (rango 30000-32767) en CADA nodo del clúster.
+# Se accede desde fuera con <IP-del-nodo>:<nodePort>.
+#   🌀 minikube      → minikube service hello-service-np --url
+#   🐳 Docker Desktop → http://localhost:30007
+#
+#   kubectl apply -f deployment-nodeport.yaml
+# =============================================================================
+apiVersion: apps/v1              # Grupo/versión de la API para Deployments
+kind: Deployment                 # Dueño de los Pods
 metadata:
-  name: hello-deployment-np
+  name: hello-deployment-np      # Nombre del Deployment (único en el namespace)
   labels:
-    app: hello
+    app: hello                   # Etiqueta del Deployment (no selecciona Pods)
 spec:
-  replicas: 2
+  replicas: 2                    # 2 Pods idénticos en ejecución
   selector:
     matchLabels:
-      app: hello-nodeport
-  template:
+      app: hello-nodeport        # Debe coincidir con template.metadata.labels
+  template:                      # Plantilla del Pod
     metadata:
       labels:
-        app: hello-nodeport
+        app: hello-nodeport      # Etiqueta de los Pods: la usan selector y Service
     spec:
       containers:
-        - name: hello-app
-          image: gcr.io/google-samples/hello-app:1.0
+        - name: hello-app        # Nombre del contenedor
+          image: gcr.io/google-samples/hello-app:1.0   # Ojo: este ejemplo usa la 1.0
           ports:
-            - containerPort: 8080
-
+            - containerPort: 8080    # Puerto de la app dentro del contenedor
 ---
-apiVersion: v1
-kind: Service
+apiVersion: v1                   # API core para Services
+kind: Service                    # IP/DNS estable + balanceo
 metadata:
-  name: hello-service-np
+  name: hello-service-np         # Nombre del Service
 spec:
-  type: NodePort
+  type: NodePort                 # Expone el Service en un puerto de cada nodo
   selector:
-    app: hello-nodeport
+    app: hello-nodeport          # Pods a los que enruta (label app=hello-nodeport)
   ports:
-    - port: 80
-      targetPort: 8080
-      nodePort: 30007
+    - port: 80                   # Puerto DEL SERVICE (interno, vía ClusterIP)
+      targetPort: 8080           # Puerto DEL CONTENEDOR al que se reenvía
+      nodePort: 30007            # Puerto abierto en CADA nodo (30000-32767).
+                                 # Si lo omites, Kubernetes asigna uno aleatorio.

@@ -1,8 +1,16 @@
-apiVersion: v1
-kind: Pod
+# =============================================================================
+# POD · Ejemplo mínimo en YAML (enfoque declarativo)
+# -----------------------------------------------------------------------------
+# Describes el estado deseado y kubectl se encarga de crearlo/actualizarlo.
+#   kubectl apply -f mypod.yml
+#   kubectl get pod mypod
+#   kubectl delete -f mypod.yml
+# =============================================================================
+apiVersion: v1           # API core (v1): donde viven Pods, Services, ConfigMaps...
+kind: Pod                # Tipo de recurso
 metadata:
-  name: mypod
-spec:
-  containers:
-  - name: mycontainer
-    image: nginx
+  name: mypod            # Nombre único del Pod dentro del namespace
+spec:                    # Estado deseado del Pod
+  containers:            # Lista de contenedores (aquí solo uno)
+  - name: mycontainer    # Nombre del contenedor dentro del Pod
+    image: nginx         # Imagen a ejecutar (sin tag equivale a :latest)
