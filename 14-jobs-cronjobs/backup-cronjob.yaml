@@ -1,0 +1,71 @@
+# =============================================================================
+# CRONJOB · Copia de seguridad programada de MySQL
+# -----------------------------------------------------------------------------
+# Un CronJob crea un Job según un horario (formato cron de 5 campos):
+#   minuto  hora  día-mes  mes  día-semana
+#   0-59    0-23  1-31     1-12 0-7 (0 y 7 = domingo)
+#
+# Aquí: "*/1 * * * *" = cada minuto (solo para practicar).
+# En producción sería algo como "0 3 * * *" (diario a las 03:00).
+#
+# ⚠️ Este archivo define el PVC pero NO el PV. El PV lo crea backup-job.yaml
+#    (o créalo antes); si no, el PVC se queda en Pending.
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+spec:
+  schedule: "*/1 * * * *"         # cada minuto (¡solo demo!)
+  concurrencyPolicy: Forbid       # si el Job anterior sigue vivo, no lanza otro
+  successfulJobsHistoryLimit: 3   # conserva los 3 últimos Jobs exitosos
+  failedJobsHistoryLimit: 1       # conserva el último Job fallido
+  jobTemplate:                    # plantilla del Job que crea en cada ejecución
+    spec:
+      template:
+        spec:
+          containers:
+          - name: mysql-backup
+            image: mysql:8.0
+            command:
+            - /bin/bash
+            - -c
+            - |
+              mysqldump -h mysql-service-sts -u root -p$(MYSQL_ROOT_PASSWORD) $(MYSQL_DATABASE) > /backup/mysql-backup-$(date +%Y%m%d_%H%M).sql
+            env:                  # mismas credenciales que el Job
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: root-password
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: database
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: mysql-backup-pvc
+          restartPolicy: Never    # obligatorio en el Pod del Job
+
+---
+# --- PVC compartido con el Job (debe enlazar con un PV existente) ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-backup-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual        # igual que el PV de backup-job.yaml
+  selector:
+    matchLabels:
+      app: mysql-backup
+      purpose: backup
+  resources:
+    requests:
+      storage: 5Gi

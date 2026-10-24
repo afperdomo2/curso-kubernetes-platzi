@@ -30,6 +30,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 11 | Almacenamiento | Volumes, PersistentVolume, PersistentVolumeClaim y StorageClass | [🔗](11-storage-pv-pvc/README.md) |
 | 12 | DaemonSets y StatefulSets | Controladores para agentes por nodo y apps con estado/identidad | [🔗](12-daemonsets-statefulsets/README.md) |
 | 13 | App multi-tier | Frontend + backend: imágenes locales, Deployments y Services | [🔗](13-multi-tier/README.md) |
+| 14 | Jobs y CronJobs | Tareas puntuales y programadas: Jobs, CronJobs y backups de MySQL | [🔗](14-jobs-cronjobs/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -70,6 +71,11 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   │   ├── 📁 frontend/                         #     nginx + linktree.html
 │   │   ├── 📁 k8s/backend/                      #     Deployment + Service del backend
 │   │   └── 📁 k8s/frontend/                     #     Deployment + Service del frontend
+├── 📁 14-jobs-cronjobs/                         # ⏱️ Jobs y CronJobs
+│   ├── 📄 mysql-secret.yaml                     #   Secret con credenciales de MySQL
+│   ├── 📄 mysql-sts.yaml                        #   StatefulSet MySQL + headless Service
+│   ├── 📄 backup-job.yaml                       #   Job + PVC + PV del backup
+│   ├── 📄 backup-cronjob.yaml                   #   CronJob + PVC (backup cada minuto)
 └── 📄 README.md                       # 📘 Este archivo
 ```
 

@@ -1,0 +1,88 @@
+# =============================================================================
+# JOB · Copia de seguridad puntual de MySQL (se ejecuta una vez)
+# -----------------------------------------------------------------------------
+# Un Job crea Pods hasta que la tarea TERMINA con éxito (no se queda vivo
+# para siempre como un Deployment).
+#   · restartPolicy: Never  → si falla, crea un Pod nuevo
+#   · backoffLimit: 4       → hasta 4 reintentos antes de marcarlo fallido
+#
+# El comando conecta con el Service headless, vuelca la BD con mysqldump y
+# escribe el .sql en el volumen /backup.
+#   kubectl apply -f backup-job.yaml
+#   kubectl get jobs,pods
+#   kubectl logs -l job-name=mysql-backup
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-backup
+spec:
+  template:
+    spec:
+      containers:
+      - name: mysql-backup
+        image: mysql:8.0       # la imagen oficial incluye el binario mysqldump
+        command:
+        - /bin/bash
+        - -c
+        - |
+          mysqldump -h mysql-service-sts -u root -p$(MYSQL_ROOT_PASSWORD) $(MYSQL_DATABASE) > /backup/mysql-backup-$(date +%Y%m%d).sql
+        env:                   # credenciales desde el Secret
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: root-password
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: database
+        volumeMounts:          # monta el PVC en /backup para guardar el .sql
+        - name: backup-storage # el nombre del volumen debe coincidir con el de abajo
+          mountPath: /backup   # aquí se guarda el .sql
+
+      volumes:                 # el Job monta el PVC (mysql-backup-pvc) en /backup
+      - name: backup-storage   # el nombre del volumen debe coincidir con el de arriba
+        persistentVolumeClaim:
+          claimName: mysql-backup-pvc   # PVC definido más abajo
+      restartPolicy: Never     # obligatorio en un Job: Never u OnFailure
+  backoffLimit: 4              # reintentos antes de dar el Job por fallido
+
+---
+# --- PVC: la solicitud de almacenamiento para los backups ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-backup-pvc       # debe coincidir con claimName del Job
+spec:
+  accessModes:
+    - ReadWriteOnce            # solo un nodo a la vez puede montarlo en lectura/escritura
+  storageClassName: manual     # debe coincidir con el PV de abajo
+  selector:
+    matchLabels:               # solo acepta un PV con estas etiquetas
+      app: mysql-backup
+      purpose: backup
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+# --- PV: el almacenamiento real de los backups ---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-backup-pv
+  labels:
+    app: mysql-backup
+    purpose: backup            # el PVC lo encuentra por estas etiquetas
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain   # conserva los .sql al borrar el PVC
+  storageClassName: manual
+  hostPath:
+    path: /mnt/mysql-backup    # carpeta del nodo
+    type: DirectoryOrCreate    # la crea si no existe

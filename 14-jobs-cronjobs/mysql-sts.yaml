@@ -1,0 +1,118 @@
+# =============================================================================
+# MYSQL · StatefulSet + Headless Service
+# -----------------------------------------------------------------------------
+# MySQL necesita IDENTIDAD ESTABLE y datos persistentes → StatefulSet.
+#   · mysql-0 es siempre el mismo Pod (sin sufijo aleatorio).
+#   · volumeClaimTemplates crea un PVC por réplica (data-mysql-0).
+#
+# Almacenamiento:
+#   · Este archivo usa APROVISIONAMIENTO DINÁMICO: el PVC pide 5Gi y la
+#     StorageClass por defecto del clúster lo crea.
+#       - Docker Desktop → hostpath (default)
+#       - minikube       → standard
+#   · El PV de abajo está COMENTADO para el modo dinámico. Para usar
+#     almacenamiento estático/manual: descoméntalo, descomenta
+#     "storageClassName: manual" en volumeClaimTemplates y crea antes la
+#     carpeta /mnt/mysql-data en el nodo.
+#   kubectl apply -f mysql-sts.yaml
+#   kubectl get sts,pods,pvc,svc
+# =============================================================================
+#
+# --- PV opcional (aprovisionamiento estático) ---
+# apiVersion: v1
+# kind: PersistentVolume
+# metadata:
+#   name: mysql-pv-0
+#   labels:
+#     type: local
+#     app: mysql
+# spec:
+#   capacity:
+#     storage: 5Gi
+#   accessModes:
+#     - ReadWriteOnce                    # un solo nodo a la vez
+#   persistentVolumeReclaimPolicy: Retain    # conserva los datos al liberar
+#   storageClassName: manual
+#   hostPath:
+#     path: /mnt/mysql-data              # carpeta del nodo (debe existir)
+#     type: DirectoryOrCreate
+# ---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: mysql-service   # ⚠️ el Service de abajo se llama mysql-service-sts;
+                               #    para que la DNS estable coincida, ambos deberían
+                               #    llamarse igual: mysql-0.mysql-service-sts
+  replicas: 1                  # 1 instancia; escalar MySQL requiere configurar replicación
+  selector:
+    matchLabels:
+      app: mysql
+
+  template:
+    metadata:
+      labels:
+        app: mysql             # debe coincidir con el selector
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:                    # credenciales inyectadas desde el Secret
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: root-password
+        - name: MYSQL_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: database
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: user
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: password
+        ports:
+        - containerPort: 3306   # puerto de MySQL (informativo)
+          name: mysql
+        resources:
+          requests:             # reserva mínima por Pod
+            memory: "256Mi"
+            cpu: "250m"
+          limits:               # techo por Pod
+            memory: "512Mi"     # si lo pasa: OOMKilled
+            cpu: "500m"         # si lo pasa: throttling
+        volumeMounts:           # DÓNDE se ven los datos dentro del contenedor
+        - name: data
+          mountPath: /var/lib/mysql
+
+  volumeClaimTemplates:         # un PVC por Pod: data-mysql-0, data-mysql-1...
+  - metadata:
+      name: data
+    spec:
+      # storageClassName: manual    # descomentar junto con el PV de arriba
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Gi
+
+---
+# --- Headless Service: DNS estable para el StatefulSet ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service-sts
+spec:
+  clusterIP: None              # headless: sin IP virtual ni balanceo
+  selector:
+    app: mysql                 # selecciona el Pod mysql-0
+  ports:
+  - port: 3306                 # puerto del Service
+    name: mysql
