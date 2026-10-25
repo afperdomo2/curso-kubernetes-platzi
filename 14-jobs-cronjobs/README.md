@@ -108,11 +108,11 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph CLUSTER["☸️ Clúster"]
-        SEC["🔐 Secret<br/>mysql-secret"]
+        SEC["🔐 Secret<br/>mysql-credentials"]
         STS["💠 StatefulSet mysql<br/>Pod mysql-0"]
-        SVC["🔌 Service headless<br/>mysql-service-sts:3306"]
+        SVC["🔌 Service headless<br/>mysql-headless:3306"]
         PVC1["💾 PVC data-mysql-0<br/>(volumeClaimTemplate)"]
-        JOB["⏱️ Job / CronJob<br/>contenedor mysql-backup"]
+        JOB["⏱️ Job mysql-backup-manual<br/>⏰ CronJob mysql-backup"]
         PVC2["💾 PVC mysql-backup-pvc"]
         PV2["💾 PV mysql-backup-pv<br/>/mnt/mysql-backup"]
     end
@@ -120,16 +120,41 @@ flowchart LR
     SEC -.->|"credenciales"| JOB
     STS --> PVC1
     STS -->|"expone"| SVC
-    JOB -->|"mysqldump -h mysql-service-sts"| SVC
+    JOB -->|"mysqldump -h mysql-headless"| SVC
     JOB -->|"escribe el .sql"| PVC2 --> PV2
 ```
 
 | Archivo | Recursos que crea |
 |---------|-------------------|
-| [`mysql-secret.yaml`](mysql-secret.yaml) | `Secret` con las credenciales de MySQL |
-| [`mysql-sts.yaml`](mysql-sts.yaml) | `StatefulSet` + `Service` headless (+ `PV` opcional comentado) |
-| [`backup-job.yaml`](backup-job.yaml) | `Job` + `PVC` + `PV` del backup |
-| [`backup-cronjob.yaml`](backup-cronjob.yaml) | `CronJob` + `PVC` (reutiliza el PV del Job) |
+| [`mysql-secret.yaml`](mysql-secret.yaml) | `Secret` `mysql-credentials` con las credenciales de MySQL |
+| [`mysql-sts.yaml`](mysql-sts.yaml) | `StatefulSet` + `Service` headless `mysql-headless` (+ `PV` opcional comentado) |
+| [`backup-job.yaml`](backup-job.yaml) | `Job` `mysql-backup-manual` + `PVC` + `PV` del backup |
+| [`backup-cronjob.yaml`](backup-cronjob.yaml) | `CronJob` `mysql-backup` (reutiliza el PVC/PV del Job) |
+
+> 💾 **Un solo dueño del almacenamiento**: el PVC `mysql-backup-pvc` y el PV `mysql-backup-pv` viven en `backup-job.yaml`. El CronJob solo declara la programación y reutiliza ese volumen. Si borras `backup-job.yaml`, el CronJob se queda sin almacenamiento.
+
+## 🏷️ Nombres y labels
+
+Los nombres describen **qué es** el recurso, no su *kind*. Los labels siguen la convención recomendada `app.kubernetes.io/*`.
+
+| Recurso | Nombre | Por qué |
+|---------|--------|---------|
+| StatefulSet | `mysql` | Nombre de la app, sin repetir el kind |
+| Service | `mysql-headless` | Describe su función (headless) |
+| Secret | `mysql-credentials` | Describe el contenido, no el kind |
+| Job manual | `mysql-backup-manual` | Lo distingue del CronJob |
+| CronJob | `mysql-backup` | Es el backup programado "oficial" |
+| PVC / PV del backup | `mysql-backup-pvc` / `mysql-backup-pv` | Se mantienen por claridad didáctica; en un equipo puedes usar `mysql-backup-data` |
+| PVC de MySQL | `data-mysql-0` | Generado por `volumeClaimTemplates` |
+
+```yaml
+# Labels comunes a todos los recursos
+app.kubernetes.io/name: mysql
+app.kubernetes.io/component: database   # o "backup" en los Jobs
+app.kubernetes.io/part-of: curso-kubernetes
+```
+
+> 🎯 El `serviceName` del StatefulSet y el nombre del Service **deben coincidir**: ambos son `mysql-headless`. El DNS por Pod queda como `mysql-0.mysql-headless.default.svc.cluster.local`.
 
 ## 🚀 Práctica paso a paso
 
@@ -139,7 +164,7 @@ flowchart LR
 
 ```bash
 kubectl apply -f mysql-secret.yaml
-kubectl get secret mysql-secret
+kubectl get secret mysql-credentials
 ```
 
 Si quieres regenerar los valores en base64:
@@ -162,7 +187,7 @@ kubectl get sts,pods,pvc,svc
 kubectl wait --for=condition=Ready pod/mysql-0 --timeout=180s
 ```
 
-Deberías ver `mysql-0` en `Running`, su PVC `data-mysql-0` en `Bound` y el Service `mysql-service-sts` con `CLUSTER-IP: None` (headless).
+Deberías ver `mysql-0` en `Running`, su PVC `data-mysql-0` en `Bound` y el Service `mysql-headless` con `CLUSTER-IP: None` (headless).
 
 Crea algunos datos de prueba:
 
@@ -185,24 +210,24 @@ EXIT;
 ```bash
 kubectl apply -f backup-job.yaml
 kubectl get jobs
-kubectl get pods -l job-name=mysql-backup
-kubectl logs -l job-name=mysql-backup
+kubectl get pods -l job-name=mysql-backup-manual
+kubectl logs -l job-name=mysql-backup-manual
 ```
 
 Comprueba que el archivo se escribió en el volumen:
 
 ```bash
-POD=$(kubectl get pods -l job-name=mysql-backup -o jsonpath='{.items[0].metadata.name}')
+POD=$(kubectl get pods -l job-name=mysql-backup-manual -o jsonpath='{.items[0].metadata.name}')
 kubectl exec -it "$POD" -- ls -l /backup
 ```
 
-Deberías ver algo como `mysql-backup-20261023.sql`.
+Deberías ver algo como `mysql-backup-20261024.sql`.
 
-> 💡 El Job pasa a `Completed`. Si lo vuelves a aplicar no se re-ejecuta: para relanzarlo bórralo primero (`kubectl delete job mysql-backup`).
+> 💡 El Job pasa a `Completed`. Si lo vuelves a aplicar no se re-ejecuta: para relanzarlo bórralo primero (`kubectl delete job mysql-backup-manual`).
 
 ### 4️⃣ Programar el backup (CronJob)
 
-> ⚠️ El CronJob define el **PVC** pero **no el PV**. El PV `mysql-backup-pv` lo creó el paso anterior (`backup-job.yaml`). Si aún no lo aplicaste, hazlo antes; si no, el PVC quedará en `Pending`.
+> ⚠️ El CronJob **no crea** el PVC ni el PV: solo declara la programación. El PVC `mysql-backup-pvc` y el PV `mysql-backup-pv` los creó el paso anterior (`backup-job.yaml`). Si aún no lo aplicaste, hazlo antes; si no, los Jobs del CronJob quedarán en `Pending`.
 
 ```bash
 kubectl apply -f backup-cronjob.yaml
@@ -211,11 +236,11 @@ kubectl get cronjob
 kubectl get jobs -w        # verás un Job nuevo cada minuto
 ```
 
-Lanza uno a mano sin esperar al horario:
+Lanza uno a mano sin esperar al horario. Usa un nombre distinto de `mysql-backup-manual` para no chocar con el Job del paso 3:
 
 ```bash
-kubectl create job --from=cronjob/mysql-backup mysql-backup-manual
-kubectl logs -l job-name=mysql-backup-manual
+kubectl create job --from=cronjob/mysql-backup mysql-backup-adhoc
+kubectl logs -l job-name=mysql-backup-adhoc
 ```
 
 > ⏱️ El horario se evalúa en **UTC** por defecto. Para las 03:00 de Bogotá (UTC-5) usa `0 8 * * *`, o indica `timeZone: America/Bogota` si tu clúster es ≥ 1.27.
@@ -232,12 +257,12 @@ kubectl get cronjob,jobs,pods
 
 ```bash
 kubectl delete cronjob mysql-backup
-kubectl delete job mysql-backup
+kubectl delete job mysql-backup-manual
 kubectl delete sts mysql
-kubectl delete svc mysql-service-sts
+kubectl delete svc mysql-headless
 kubectl delete pvc mysql-backup-pvc data-mysql-0
 kubectl delete pv mysql-backup-pv
-kubectl delete secret mysql-secret
+kubectl delete secret mysql-credentials
 ```
 
 > 💡 Borrar el StatefulSet **no** borra su PVC (`data-mysql-0`): es una protección para no perder datos. Hay que eliminarlo a mano. El PV dinámico se borra según su `reclaimPolicy` (`Delete` por defecto en `hostpath`); el PV manual del backup usa `Retain`, así que hay que borrarlo explícitamente.
@@ -246,21 +271,48 @@ kubectl delete secret mysql-secret
 
 | Síntoma | Causa probable | Solución |
 |---------|----------------|----------|
-| PVC del CronJob en `Pending` | No existe el PV `mysql-backup-pv` | Aplica antes `backup-job.yaml` (o crea el PV) |
+| PVC/Jobs del CronJob en `Pending` | No existe el PVC/PV del backup | Aplica antes `backup-job.yaml` (es el dueño del almacenamiento) |
 | `mysql-0` en `Pending` / `CrashLoopBackOff` | El PVC no enlaza o MySQL tarda en inicializar | `kubectl describe pod mysql-0` y `kubectl logs mysql-0` |
-| No resuelve `mysql-0.mysql-service-sts` | `serviceName` del StatefulSet no coincide con el Service | Ver nota de abajo |
+| No resuelve `mysql-0.mysql-headless` | `serviceName` del StatefulSet o nombre del Service no coinciden | Verifica que ambos sean `mysql-headless` |
 | El CronJob no se dispara | Horario en UTC o CronJob `suspend: true` | Revisa `kubectl get cronjob -o yaml` |
-| El Job no termina | `mysqldump` no conecta con MySQL | `kubectl logs -l job-name=mysql-backup` |
+| El Job no termina | `mysqldump` no conecta con MySQL | `kubectl logs -l job-name=mysql-backup-manual` |
 
-> ⚠️ **Detalle del manifiesto**: [`mysql-sts.yaml`](mysql-sts.yaml) declara `serviceName: mysql-service`, pero el Service se llama `mysql-service-sts`. La conexión a `mysql-service-sts` **sí funciona** (el Service selecciona el Pod por label), pero para que la **DNS estable** del StatefulSet (`mysql-0.mysql-service-sts`) sea consistente, ambos nombres deberían coincidir. Se dejó el valor original para no alterar el ejercicio.
+> ✅ **DNS estable**: el StatefulSet usa `serviceName: mysql-headless` y el Service se llama igual. Verifícalo con `kubectl exec -it mysql-0 -- getent hosts mysql-0.mysql-headless`.
 
-> ⚠️ **`mysqldump -p$(PASSWORD)`** deja la contraseña visible en la lista de procesos del contenedor. En producción usa la variable `MYSQL_PWD` o un `--defaults-extra-file` con permisos restringidos.
+> 🔐 **Contraseña fuera de la línea de comandos**: el backup usa la variable `MYSQL_PWD` en vez de `-p$(...)`, así la contraseña no aparece en `ps`. La opción más segura en producción es un `--defaults-extra-file` con permisos `600`.
+
+> ⏱️ **Límites de tiempo**: el Job y el CronJob definen `backoffLimit: 4` y `activeDeadlineSeconds: 3600`. Un backup colgado no queda vivo para siempre y ambos se comportan igual ante fallos.
+
+> 🏷️ **Labels**: todos los recursos usan `app.kubernetes.io/name`, `app.kubernetes.io/component` y `app.kubernetes.io/part-of`. Puedes filtrar con `kubectl get all -l app.kubernetes.io/name=mysql`.
 
 > ⚠️ **`hostPath` no es un backup de verdad**: el `.sql` queda en el nodo. Si el nodo muere, se pierde. Para producción usa almacenamiento de red (NFS) u object storage (S3, GCS) o una herramienta como **Velero**.
 
 > 💡 **`ttlSecondsAfterFinished`** es muy útil en Jobs: añade, por ejemplo, `ttlSecondsAfterFinished: 100` y Kubernetes borra el Job (y sus Pods) 100 segundos después de terminar, sin acumular basura.
 
 > 💡 **Los Jobs no son idempotentes por sí solos**: si el comando escribe un archivo con la fecha del día, dos ejecuciones el mismo día se sobrescriben. El CronJob usa fecha **y hora** (`%Y%m%d_%H%M`) justo para evitarlo.
+
+## 🔄 Migración desde los nombres anteriores
+
+Si ya tenías aplicada una versión anterior del módulo (con `mysql-secret`, `mysql-service-sts`, el Job `mysql-backup` y los labels `app: mysql-backup`), aplicar los manifiestos nuevos fallará: `serviceName`, el `selector` del StatefulSet y el `selector` del PVC son **inmutables**. El PVC de MySQL (`data-mysql-0`) y los `.sql` de `/mnt/mysql-backup` **no se pierden**.
+
+```bash
+# 1. Borrar los objetos con nombres/labels antiguos
+kubectl delete cronjob mysql-backup --ignore-not-found
+kubectl delete job mysql-backup --ignore-not-found
+kubectl delete sts mysql --ignore-not-found
+kubectl delete svc mysql-service-sts --ignore-not-found
+kubectl delete pvc mysql-backup-pvc --ignore-not-found
+kubectl delete pv mysql-backup-pv --ignore-not-found
+kubectl delete secret mysql-secret --ignore-not-found
+
+# 2. Aplicar la versión nueva en orden
+kubectl apply -f mysql-secret.yaml
+kubectl apply -f mysql-sts.yaml
+kubectl apply -f backup-job.yaml
+kubectl apply -f backup-cronjob.yaml
+```
+
+> 💡 `kubectl delete sts mysql` **no** borra el PVC `data-mysql-0`: el StatefulSet lo reutiliza y MySQL conserva sus datos. El nuevo PV de backups apunta a la misma carpeta `/mnt/mysql-backup`, así que los `.sql` anteriores siguen ahí.
 
 ## 🧭 Navegación
 

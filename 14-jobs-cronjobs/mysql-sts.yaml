@@ -4,6 +4,8 @@
 # MySQL necesita IDENTIDAD ESTABLE y datos persistentes → StatefulSet.
 #   · mysql-0 es siempre el mismo Pod (sin sufijo aleatorio).
 #   · volumeClaimTemplates crea un PVC por réplica (data-mysql-0).
+#   · El Service headless "mysql-headless" da DNS estable por Pod:
+#         mysql-0.mysql-headless.default.svc.cluster.local
 #
 # Almacenamiento:
 #   · Este archivo usa APROVISIONAMIENTO DINÁMICO: el PVC pide 5Gi y la
@@ -22,10 +24,10 @@
 # apiVersion: v1
 # kind: PersistentVolume
 # metadata:
-#   name: mysql-pv-0
+#   name: mysql-data-pv
 #   labels:
-#     type: local
-#     app: mysql
+#     app.kubernetes.io/name: mysql
+#     app.kubernetes.io/component: database
 # spec:
 #   capacity:
 #     storage: 5Gi
@@ -41,19 +43,23 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mysql
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: curso-kubernetes
 spec:
-  serviceName: mysql-service   # ⚠️ el Service de abajo se llama mysql-service-sts;
-                               #    para que la DNS estable coincida, ambos deberían
-                               #    llamarse igual: mysql-0.mysql-service-sts
-  replicas: 1                  # 1 instancia; escalar MySQL requiere configurar replicación
+  serviceName: mysql-headless  # debe coincidir con el Service headless de abajo
+  replicas: 1                  # 1 instancia; escalar MySQL requiere replicación
   selector:
-    matchLabels:
-      app: mysql
-
+    matchLabels:               # debe coincidir con template.metadata.labels
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/component: database
   template:
     metadata:
       labels:
-        app: mysql             # debe coincidir con el selector
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: curso-kubernetes
     spec:
       containers:
       - name: mysql
@@ -62,22 +68,22 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mysql-secret
+              name: mysql-credentials
               key: root-password
         - name: MYSQL_DATABASE
           valueFrom:
             secretKeyRef:
-              name: mysql-secret
-              key: database
+              name: mysql-credentials
+              key: database-name
         - name: MYSQL_USER
           valueFrom:
             secretKeyRef:
-              name: mysql-secret
-              key: user
+              name: mysql-credentials
+              key: username
         - name: MYSQL_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mysql-secret
+              name: mysql-credentials
               key: password
         ports:
         - containerPort: 3306   # puerto de MySQL (informativo)
@@ -92,27 +98,35 @@ spec:
         volumeMounts:           # DÓNDE se ven los datos dentro del contenedor
         - name: data
           mountPath: /var/lib/mysql
-
   volumeClaimTemplates:         # un PVC por Pod: data-mysql-0, data-mysql-1...
   - metadata:
       name: data
+      labels:                   # labels del PVC generado
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: curso-kubernetes
     spec:
       # storageClassName: manual    # descomentar junto con el PV de arriba
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
           storage: 5Gi
-
 ---
 # --- Headless Service: DNS estable para el StatefulSet ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysql-service-sts
+  name: mysql-headless
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: curso-kubernetes
 spec:
   clusterIP: None              # headless: sin IP virtual ni balanceo
-  selector:
-    app: mysql                 # selecciona el Pod mysql-0
+  selector:                    # selecciona los Pods del StatefulSet
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: database
   ports:
   - port: 3306                 # puerto del Service
     name: mysql
+    targetPort: mysql          # referencia el puerto por nombre

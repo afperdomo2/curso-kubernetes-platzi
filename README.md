@@ -72,10 +72,10 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   │   ├── 📁 k8s/backend/                      #     Deployment + Service del backend
 │   │   └── 📁 k8s/frontend/                     #     Deployment + Service del frontend
 ├── 📁 14-jobs-cronjobs/                         # ⏱️ Jobs y CronJobs
-│   ├── 📄 mysql-secret.yaml                     #   Secret con credenciales de MySQL
-│   ├── 📄 mysql-sts.yaml                        #   StatefulSet MySQL + headless Service
-│   ├── 📄 backup-job.yaml                       #   Job + PVC + PV del backup
-│   ├── 📄 backup-cronjob.yaml                   #   CronJob + PVC (backup cada minuto)
+│   ├── 📄 mysql-secret.yaml                     #   Secret mysql-credentials (credenciales)
+│   ├── 📄 mysql-sts.yaml                        #   StatefulSet MySQL + Service mysql-headless
+│   ├── 📄 backup-job.yaml                       #   Job mysql-backup-manual + PVC + PV
+│   ├── 📄 backup-cronjob.yaml                   #   CronJob mysql-backup (cada minuto; reutiliza PVC/PV)
 └── 📄 README.md                       # 📘 Este archivo
 ```
 

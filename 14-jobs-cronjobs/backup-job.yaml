@@ -10,14 +10,28 @@
 # escribe el .sql en el volumen /backup.
 #   kubectl apply -f backup-job.yaml
 #   kubectl get jobs,pods
-#   kubectl logs -l job-name=mysql-backup
+#   kubectl logs -l job-name=mysql-backup-manual
+#
+# Este archivo es el DUEÑO del almacenamiento de backups: crea el PVC y el PV.
+# backup-cronjob.yaml solo declara el CronJob y reutiliza este PVC/PV.
 # =============================================================================
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: mysql-backup
+  name: mysql-backup-manual   # "manual" lo distingue del CronJob "mysql-backup"
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: curso-kubernetes
 spec:
+  backoffLimit: 4              # reintentos antes de dar el Job por fallido
+  activeDeadlineSeconds: 3600  # timeout total (1 hora)
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/component: backup
+        app.kubernetes.io/part-of: curso-kubernetes
     spec:
       containers:
       - name: mysql-backup
@@ -26,28 +40,34 @@ spec:
         - /bin/bash
         - -c
         - |
-          mysqldump -h mysql-service-sts -u root -p$(MYSQL_ROOT_PASSWORD) $(MYSQL_DATABASE) > /backup/mysql-backup-$(date +%Y%m%d).sql
+          mysqldump -h mysql-headless -u root "$MYSQL_DATABASE" > /backup/mysql-backup-$(date +%Y%m%d).sql
         env:                   # credenciales desde el Secret
-        - name: MYSQL_ROOT_PASSWORD
+        - name: MYSQL_PWD      # mysqldump lee la contraseña de esta variable
           valueFrom:
             secretKeyRef:
-              name: mysql-secret
+              name: mysql-credentials
               key: root-password
         - name: MYSQL_DATABASE
           valueFrom:
             secretKeyRef:
-              name: mysql-secret
-              key: database
+              name: mysql-credentials
+              key: database-name
         volumeMounts:          # monta el PVC en /backup para guardar el .sql
         - name: backup-storage # el nombre del volumen debe coincidir con el de abajo
           mountPath: /backup   # aquí se guarda el .sql
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
 
       volumes:                 # el Job monta el PVC (mysql-backup-pvc) en /backup
       - name: backup-storage   # el nombre del volumen debe coincidir con el de arriba
         persistentVolumeClaim:
           claimName: mysql-backup-pvc   # PVC definido más abajo
       restartPolicy: Never     # obligatorio en un Job: Never u OnFailure
-  backoffLimit: 4              # reintentos antes de dar el Job por fallido
 
 ---
 # --- PVC: la solicitud de almacenamiento para los backups ---
@@ -55,14 +75,18 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mysql-backup-pvc       # debe coincidir con claimName del Job
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: curso-kubernetes
 spec:
   accessModes:
     - ReadWriteOnce            # solo un nodo a la vez puede montarlo en lectura/escritura
   storageClassName: manual     # debe coincidir con el PV de abajo
   selector:
     matchLabels:               # solo acepta un PV con estas etiquetas
-      app: mysql-backup
-      purpose: backup
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/component: backup
   resources:
     requests:
       storage: 5Gi
@@ -74,8 +98,9 @@ kind: PersistentVolume
 metadata:
   name: mysql-backup-pv
   labels:
-    app: mysql-backup
-    purpose: backup            # el PVC lo encuentra por estas etiquetas
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: curso-kubernetes
 spec:
   capacity:
     storage: 5Gi
