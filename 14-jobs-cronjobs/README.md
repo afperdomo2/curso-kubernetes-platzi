@@ -158,7 +158,7 @@ app.kubernetes.io/part-of: curso-kubernetes
 
 ## 🚀 Práctica paso a paso
 
-> 💡 Los comandos usan sintaxis **Bash** (Git Bash / WSL / Linux). En PowerShell cambia `$(...)`, `export` y las variables por su equivalente.
+> 💡 Los comandos son sintaxis **Bash** (Ubuntu).
 
 ### 1️⃣ Crear el Secret
 
@@ -214,16 +214,61 @@ kubectl get pods -l job-name=mysql-backup-manual
 kubectl logs -l job-name=mysql-backup-manual
 ```
 
-Comprueba que el archivo se escribió en el volumen:
+Comprueba que el archivo se escribió en el volumen. Ojo: el Pod del Job termina en `Completed`, y **`kubectl exec` no funciona en un Pod terminado** (`cannot exec into a container in a completed pod`). El `.sql` hay que mirarlo desde el nodo:
 
 ```bash
-POD=$(kubectl get pods -l job-name=mysql-backup-manual -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -it "$POD" -- ls -l /backup
+minikube ssh -- sudo ls -lh /mnt/mysql-backup
 ```
 
-Deberías ver algo como `mysql-backup-20261024.sql`.
+Deberías ver algo como `mysql-backup-20261103.sql`. El detalle está justo aquí debajo.
 
 > 💡 El Job pasa a `Completed`. Si lo vuelves a aplicar no se re-ejecuta: para relanzarlo bórralo primero (`kubectl delete job mysql-backup-manual`).
+
+### 📂 Los backups en el nodo (hostPath)
+
+El PV `mysql-backup-pv` no es almacenamiento de red: es una **carpeta del nodo**. Lo que el Job escribe en `/backup` (dentro del Pod) aparece en `/mnt/mysql-backup` (dentro del nodo de minikube), y desde ahí lo puedes inspeccionar.
+
+**Un comando suelto, sin entrar al nodo:**
+
+```bash
+# la ruta la define el PV, no la memoria
+kubectl get pv mysql-backup-pv -o jsonpath='{.spec.hostPath.path}{"\n"}'
+# → /mnt/mysql-backup
+
+minikube ssh -- sudo ls -lh /mnt/mysql-backup
+```
+
+**Entrando al nodo** (shell interactiva; se sale con `exit`):
+
+```bash
+minikube ssh
+sudo ls -lh /mnt/mysql-backup
+sudo head -20 /mnt/mysql-backup/mysql-backup-20261103_2024.sql
+exit
+```
+
+**Traerte un backup a tu máquina:**
+
+```bash
+minikube cp minikube:/mnt/mysql-backup/mysql-backup-20261103_2024.sql ./mysql-backup.sql
+
+# o sin pasar por el nodo
+minikube ssh -- sudo cat /mnt/mysql-backup/mysql-backup-20261103_2024.sql > ./mysql-backup.sql
+```
+
+| Comando | Para qué |
+|---------|----------|
+| `minikube ssh` | Abrir shell dentro del nodo (donde vive el `hostPath`) |
+| `minikube ssh -- <cmd>` | Ejecutar un comando suelto sin entrar |
+| `minikube cp minikube:<ruta> <destino>` | Copiar del nodo a tu máquina |
+| `kubectl exec -it <pod> -- ls /backup` | Solo con el Pod en `Running`; en un Job terminado **falla** |
+
+> ⚠️ **Los `.sql` no se borran solos.** El CronJob limita cuántos *Jobs* conserva (`successfulJobsHistoryLimit: 3`), pero los archivos del volumen no los toca nadie: crecen para siempre. Limpia de vez en cuando:
+> ```bash
+> minikube ssh -- sudo find /mnt/mysql-backup -name "*.sql" -mtime +7 -delete
+> ```
+
+> ⚠️ **Esa carpeta vive dentro de minikube.** `minikube delete` se la lleva por delante, y si el nodo muere el `.sql` se va con él. Un backup solo es backup cuando sale del clúster (S3, NFS, o al menos `minikube cp` a otra máquina).
 
 ### 4️⃣ Programar el backup (CronJob)
 
@@ -251,6 +296,9 @@ kubectl logs -l job-name=mysql-backup-adhoc
 kubectl get all
 kubectl get pv,pvc
 kubectl get cronjob,jobs,pods
+
+# y los archivos reales, dentro del nodo
+minikube ssh -- sudo ls -lh /mnt/mysql-backup
 ```
 
 ### 6️⃣ Limpieza
@@ -267,6 +315,8 @@ kubectl delete secret mysql-credentials
 
 > 💡 Borrar el StatefulSet **no** borra su PVC (`data-mysql-0`): es una protección para no perder datos. Hay que eliminarlo a mano. El PV dinámico se borra según su `reclaimPolicy` (`Delete` por defecto en `hostpath`); el PV manual del backup usa `Retain`, así que hay que borrarlo explícitamente.
 
+> 🗂️ Ojo: aunque borres el PV, la carpeta `/mnt/mysql-backup` **sigue en el nodo**. Si ya no la quieres: `minikube ssh -- sudo rm -rf /mnt/mysql-backup`.
+
 ## ⚠️ Notas y troubleshooting
 
 | Síntoma | Causa probable | Solución |
@@ -276,6 +326,8 @@ kubectl delete secret mysql-credentials
 | No resuelve `mysql-0.mysql-headless` | `serviceName` del StatefulSet o nombre del Service no coinciden | Verifica que ambos sean `mysql-headless` |
 | El CronJob no se dispara | Horario en UTC o CronJob `suspend: true` | Revisa `kubectl get cronjob -o yaml` |
 | El Job no termina | `mysqldump` no conecta con MySQL | `kubectl logs -l job-name=mysql-backup-manual` |
+| `cannot exec into a container in a completed pod` | El Pod del Job ya terminó (`Completed`) | Usa `kubectl logs` o mira el volumen desde el nodo: `minikube ssh -- sudo ls -lh /mnt/mysql-backup` |
+| Los `.sql` no están en `/backup` ni en tu máquina | Estás mirando el host, no el nodo | `minikube ssh -- sudo ls /mnt/mysql-backup` (ver **Los backups en el nodo**) |
 
 > ✅ **DNS estable**: el StatefulSet usa `serviceName: mysql-headless` y el Service se llama igual. Verifícalo con `kubectl exec -it mysql-0 -- getent hosts mysql-0.mysql-headless`.
 
@@ -285,7 +337,7 @@ kubectl delete secret mysql-credentials
 
 > 🏷️ **Labels**: todos los recursos usan `app.kubernetes.io/name`, `app.kubernetes.io/component` y `app.kubernetes.io/part-of`. Puedes filtrar con `kubectl get all -l app.kubernetes.io/name=mysql`.
 
-> ⚠️ **`hostPath` no es un backup de verdad**: el `.sql` queda en el nodo. Si el nodo muere, se pierde. Para producción usa almacenamiento de red (NFS) u object storage (S3, GCS) o una herramienta como **Velero**.
+> ⚠️ **`hostPath` no es un backup de verdad**: el `.sql` queda en el nodo (cómo mirarlo: **Los backups en el nodo**, arriba). Si el nodo muere, se pierde. Para producción usa almacenamiento de red (NFS) u object storage (S3, GCS) o una herramienta como **Velero**.
 
 > 💡 **`ttlSecondsAfterFinished`** es muy útil en Jobs: añade, por ejemplo, `ttlSecondsAfterFinished: 100` y Kubernetes borra el Job (y sus Pods) 100 segundos después de terminar, sin acumular basura.
 
