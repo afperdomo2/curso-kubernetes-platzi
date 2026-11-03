@@ -17,8 +17,9 @@ Study-notes repository for the Platzi Kubernetes course. **Docs only** — there
 
 ## Commands in docs
 
-- Shell snippets in the notes use **Bash** syntax (`export`, `$(...)`, `${...}`). The host is **Linux (Ubuntu)**; no PowerShell conversion is needed, and docs should not include Windows/PowerShell variants.
-- Any kubectl/minikube commands are informational documentation, not executed against a live cluster.
+- Shell snippets use **Bash** syntax (`export`, `$(...)`, `${...}`). Don't add PowerShell variants.
+- The course has been practiced in **two** environments: **Linux/Ubuntu + minikube** (current, primary) and **Windows 11 + Kubernetes from Docker Desktop** (earlier — that cluster is `docker-desktop`, it is *not* minikube). Any doc using minikube-only features (`minikube addons`, `minikube image build`, `minikube ssh`, `minikube service`, `minikube dashboard`) must include a table/note with the Docker Desktop equivalent and mark those commands as minikube-only.
+- Any kubectl/minikube commands are informational documentation, not executed against a live cluster — don't assume one exists; run them only when the user asks for it.
 
 ## Editing scope
 

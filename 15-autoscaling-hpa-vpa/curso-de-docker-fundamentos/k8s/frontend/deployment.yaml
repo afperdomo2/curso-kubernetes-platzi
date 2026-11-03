@@ -1,0 +1,44 @@
+# =============================================================================
+# FRONTEND · Deployment (nginx con el linktree estático)
+# -----------------------------------------------------------------------------
+# 1 réplica inicial. El HPA (frontend-hpa) puede subirlo hasta 3.
+# Sirve HTML/JS desde nginx; aquí el "trabajo" es casi nulo, así que su
+# umbral de escalado es mucho más bajo que el del backend.
+#
+# ⚠️ La imagen se construye en local y NO está en ningún registry:
+#   minikube (Ubuntu):      minikube image build -t frontend:latest  ./frontend
+#   Docker Desktop (Win11): docker build -t frontend:latest ./frontend
+# Por eso imagePullPolicy: Never → nunca intenta descargarla de Docker Hub.
+#
+#   kubectl apply -f k8s/frontend/
+#   kubectl get deploy,pods -l app=frontend
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  labels:
+    app: frontend
+spec:
+  replicas: 1                      # punto de partida; el HPA manda a partir de aquí
+  selector:
+    matchLabels:
+      app: frontend                # debe coincidir con template.metadata.labels
+  template:
+    metadata:
+      labels:
+        app: frontend              # etiqueta que usan el selector, el Service y el HPA
+    spec:
+      containers:
+      - name: frontend
+        image: frontend:latest     # imagen construida en local (ver cabecera)
+        ports:
+        - containerPort: 80        # nginx escucha en el 80
+        imagePullPolicy: Never     # usa la imagen que ya está en el nodo
+        resources:
+          requests:                # ⚠️ base del cálculo del HPA (20 % de 50m = 10m)
+            cpu: "50m"
+            memory: "64Mi"
+          limits:                  # techo del contenedor
+            cpu: "100m"
+            memory: "128Mi"

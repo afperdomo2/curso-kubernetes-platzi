@@ -1,0 +1,43 @@
+# =============================================================================
+# BACKEND · Deployment (API Flask del módulo 13)
+# -----------------------------------------------------------------------------
+# 1 réplica inicial. El HPA (backend-hpa) puede subirlo hasta 5 según CPU.
+# Es el destino de escalado de la "Demo 2" del módulo 15.
+#
+# ⚠️ La imagen se construye en local y NO está en ningún registry:
+#   minikube (Ubuntu):      minikube image build -t backend:latest  ./backend
+#   Docker Desktop (Win11): docker build -t backend:latest ./backend
+# Por eso imagePullPolicy: Never → nunca intenta descargarla de Docker Hub.
+#
+#   kubectl apply -f k8s/backend/
+#   kubectl get deploy,pods -l app=backend
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: backend
+spec:
+  replicas: 1                     # punto de partida; el HPA manda a partir de aquí
+  selector:
+    matchLabels:
+      app: backend                # debe coincidir con template.metadata.labels
+  template:
+    metadata:
+      labels:
+        app: backend              # etiqueta que usan el selector, el Service y el HPA
+    spec:
+      containers:
+      - name: backend
+        image: backend:latest     # imagen construida en local (ver cabecera)
+        ports:
+        - containerPort: 5001     # Flask escucha en 5001
+        imagePullPolicy: Never    # usa la imagen que ya está en el nodo
+        resources:
+          requests:               # ⚠️ base del cálculo del HPA (80 % de 50m = 40m)
+            cpu: "50m"
+            memory: "128Mi"
+          limits:                 # techo del contenedor: al llegar, se estrangula
+            cpu: "100m"
+            memory: "150Mi"

@@ -31,6 +31,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 | 12 | DaemonSets y StatefulSets | Controladores para agentes por nodo y apps con estado/identidad | [🔗](12-daemonsets-statefulsets/README.md) |
 | 13 | App multi-tier | Frontend + backend: imágenes locales, Deployments y Services | [🔗](13-multi-tier/README.md) |
 | 14 | Jobs y CronJobs | Tareas puntuales y programadas: Jobs, CronJobs y backups de MySQL | [🔗](14-jobs-cronjobs/README.md) |
+| 15 | Autoscaling | HPA y VPA: escalar réplicas con métricas, límites y diferencias por entorno | [🔗](15-autoscaling-hpa-vpa/README.md) |
 
 ## 🧩 Estructura del proyecto
 
@@ -76,6 +77,11 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   ├── 📄 mysql-sts.yaml                        #   StatefulSet MySQL + Service mysql-headless
 │   ├── 📄 backup-job.yaml                       #   Job mysql-backup-manual + PVC + PV
 │   ├── 📄 backup-cronjob.yaml                   #   CronJob mysql-backup (cada minuto; reutiliza PVC/PV)
+├── 📁 15-autoscaling-hpa-vpa/                   # 📈 Autoscaling (HPA y VPA)
+│   ├── 📄 app.yaml                              #   Deployment nginx + Service (demo del HPA)
+│   ├── 📄 hpa.yaml                              #   HPA my-hpa (1..4 réplicas al 20% de CPU)
+│   ├── 📄 vpa.yaml                              #   VPA my-vpa (requiere instalar CRDs)
+│   ├── 📁 curso-de-docker-fundamentos/          #   Demo 2: app del módulo 13 + HPAs
 └── 📄 README.md                       # 📘 Este archivo
 ```
 
@@ -83,7 +89,8 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 
 | Herramienta | Para qué se usa |
 |-------------|-----------------|
-| [minikube](https://minikube.sigs.k8s.io/docs/) | Clúster de Kubernetes local (single o multi-nodo) |
+| [minikube](https://minikube.sigs.k8s.io/docs/) | Clúster de Kubernetes local (single o multi-nodo) — entorno actual del curso |
+| [Docker Desktop](https://docs.docker.com/desktop/kubernetes/) | Alternativa: clúster local integrado en Windows 11 (`docker-desktop`) |
 | [kubectl](https://kubernetes.io/es/docs/reference/kubectl/) | CLI oficial para interactuar con el clúster |
 | [Docker](https://www.docker.com/) | Driver de contenedores para minikube y delivery de imágenes |
 
@@ -113,7 +120,7 @@ kubectl describe pod <nombre>
 kubectl create namespace mi-equipo
 ```
 
-> 💡 **Nota:** Los comandos de este curso se ejecutan desde **Bash** (Git Bash / WSL / Linux). Ajusta la sintaxis si trabajas con PowerShell.
+> 💡 **Dos entornos, un mismo kubectl.** Los comandos están en **Bash** y se practicaron en **Ubuntu con minikube**. El curso también se hizo antes en **Windows 11 con Kubernetes de Docker Desktop**, que es un clúster distinto (no hay minikube): los módulos que dependen de minikube (`addons`, `image build`, `ssh`, `service`) traen una tabla de **equivalencias por entorno**.
 
 ## 📚 Recursos oficiales
 
