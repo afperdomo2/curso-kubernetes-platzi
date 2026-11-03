@@ -2,8 +2,6 @@
 # FRONTEND · Deployment (nginx con el linktree estático)
 # -----------------------------------------------------------------------------
 # 1 réplica inicial. El HPA (frontend-hpa) puede subirlo hasta 3.
-# Sirve HTML/JS desde nginx; aquí el "trabajo" es casi nulo, así que su
-# umbral de escalado es mucho más bajo que el del backend.
 #
 # ⚠️ La imagen se construye en local y NO está en ningún registry:
 #   minikube (Ubuntu):      minikube image build -t frontend:latest  ./frontend
@@ -17,24 +15,51 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend-deployment
+  namespace: autoscaling
   labels:
     app: frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: curso-kubernetes
+    app.kubernetes.io/managed-by: kubectl
 spec:
   replicas: 1                      # punto de partida; el HPA manda a partir de aquí
+  revisionHistoryLimit: 3
+  minReadySeconds: 5
+  progressDeadlineSeconds: 300
   selector:
     matchLabels:
-      app: frontend                # debe coincidir con template.metadata.labels
+      app: frontend                # ⚠️ inmutable: cambiarlo obliga a recrear
   template:
     metadata:
       labels:
-        app: frontend              # etiqueta que usan el selector, el Service y el HPA
+        app: frontend              # la usan el Service, el HPA y el PDB
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/component: web
     spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
       containers:
       - name: frontend
         image: frontend:latest     # imagen construida en local (ver cabecera)
-        ports:
-        - containerPort: 80        # nginx escucha en el 80
         imagePullPolicy: Never     # usa la imagen que ya está en el nodo
+        ports:
+        - name: http               # puerto con nombre
+          containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+          failureThreshold: 3
         resources:
           requests:                # ⚠️ base del cálculo del HPA (20 % de 50m = 10m)
             cpu: "50m"

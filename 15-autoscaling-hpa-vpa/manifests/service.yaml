@@ -1,0 +1,33 @@
+# =============================================================================
+# SERVICE · Punto de entrada interno de la demo
+# -----------------------------------------------------------------------------
+# ClusterIP: solo accesible dentro del clúster, que es lo que necesita el
+# load-generator del README (no hace falta exponerlo al host).
+#
+# Buenas prácticas aplicadas:
+#   · puerto con nombre (`http`) y `targetPort` por nombre, no por número:
+#     si el contenedor cambia de puerto, el Service no se toca.
+#   · `appProtocol: http` lo usan Ingress/Gateway para saber el protocolo.
+#
+#   kubectl get svc -n autoscaling my-app
+#   kubectl run tmp --rm -it --image=busybox --restart=Never -- wget -qO- http://my-app
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app
+  namespace: autoscaling
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: curso-kubernetes
+spec:
+  type: ClusterIP
+  selector:
+    app: my-app                 # debe coincidir con las labels de los Pods
+  ports:
+  - name: http                  # mismo nombre que el puerto del contenedor
+    protocol: TCP
+    port: 80                    # puerto DEL SERVICE
+    targetPort: http            # puerto DEL CONTENEDOR, referenciado por nombre
+    appProtocol: http

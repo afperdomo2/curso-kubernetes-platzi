@@ -22,12 +22,15 @@ flowchart LR
 
 | Manifiesto | Recursos |
 |------------|----------|
-| `k8s/backend/deployment.yaml` | Deployment `backend-deployment` (`backend:latest`, 5001) |
-| `k8s/backend/service.yaml` | Service `backend-service` (LoadBalancer, 5001) |
+| `k8s/00-namespace.yaml` | Namespace `autoscaling` (compartido con la demo 1 del módulo) |
+| `k8s/backend/deployment.yaml` | Deployment `backend-deployment` (`backend:latest`, 5001, probes) |
+| `k8s/backend/service.yaml` | Service `backend-service` (LoadBalancer, puerto `http` → 5001) |
 | `k8s/backend/hpa.yaml` | HPA `backend-hpa` — 1..5 réplicas al **80 %** de su `requests.cpu` (50m) |
-| `k8s/frontend/deployment.yaml` | Deployment `frontend-deployment` (`frontend:latest`, 80) |
-| `k8s/frontend/service.yaml` | Service `frontend-service` (LoadBalancer, 80) |
+| `k8s/backend/pdb.yaml` | PDB `backend-pdb` — `maxUnavailable: 1` |
+| `k8s/frontend/deployment.yaml` | Deployment `frontend-deployment` (`frontend:latest`, 80, probes) |
+| `k8s/frontend/service.yaml` | Service `frontend-service` (LoadBalancer, puerto `http` → 80) |
 | `k8s/frontend/hpa.yaml` | HPA `frontend-hpa` — 1..3 réplicas al **20 %** de su `requests.cpu` (50m) |
+| `k8s/frontend/pdb.yaml` | PDB `frontend-pdb` — `maxUnavailable: 1` |
 
 ## ⚙️ Requisitos según tu entorno
 
@@ -92,12 +95,16 @@ docker images | grep -E "backend|frontend"
 
 ## 2️⃣ Desplegar todo
 
+Primero el namespace del módulo (si ya aplicaste la demo 1, ya existe y este comando no hace nada):
+
 ```bash
+kubectl apply -f k8s/00-namespace.yaml
+kubectl config set-context --current --namespace=autoscaling
+
 kubectl apply -f k8s/backend/
 kubectl apply -f k8s/frontend/
 
-kubectl get deploy,pods,svc
-kubectl get hpa
+kubectl get deploy,pods,svc,hpa,pdb
 
 # deja que arranquen: sin Pods listos no hay métricas para el HPA
 kubectl wait --for=condition=Ready pod -l app=backend  --timeout=180s
@@ -113,6 +120,8 @@ frontend-deployment-f8d97998f-k5d2m   1/1     Running   0          40s
 ```
 
 Los Pods tardan unos segundos; el backend instala Flask dentro del contenedor. Si alguno queda en `ErrImagePull`, vuelve al paso 1 (la ruta de tu entorno) y repite.
+
+> 💡 Todo queda en el namespace `autoscaling`, así no pisa los recursos del [módulo 13](../../13-multi-tier/README.md), que usa los mismos nombres en `default`.
 
 ## 3️⃣ Verificar que el HPA tiene métricas
 
@@ -133,7 +142,8 @@ Esperado (los porcentajes son de ejemplo: dependen de la carga real):
 ## 4️⃣ Generar carga y ver el escalado
 
 ```bash
-# en una terminal: mira cómo cambian las réplicas (el HPA no lleva labels, se mira aparte)
+# en una terminal: mira cómo cambian las réplicas
+# (los HPA no llevan la label `app`, por eso se consultan aparte)
 kubectl get hpa -w
 
 # en otra: los Pods del frontend apareciendo y desapareciendo
@@ -174,6 +184,7 @@ minikube service backend-service      # o: minikube tunnel
 
 | Síntoma | Causa | Solución |
 |---------|-------|----------|
+| `NotFound` o no aparece nada en `kubectl get pods` | Estás en otro namespace | `kubectl config set-context --current --namespace=autoscaling` (o `-n autoscaling`) |
 | `ErrImagePull` / `ImagePullBackOff` | La imagen no llegó al nodo (típico: construir con `docker compose build` en vez de la ruta del paso 1) | Repite el paso 1 con **tu** ruta (A: `minikube image build`, B: `docker build`) y luego `kubectl rollout restart deploy/backend-deployment deploy/frontend-deployment` |
 | Pods `Running` pero HPA en `TARGETS: <unknown>` | metrics-server sin muestras o no instalado | Espera 1–2 min; si sigue, instálalo según tu entorno (tabla de requisitos) |
 | `kubectl top` → `Metrics API not available` | Sin metrics-server | Igual que arriba |
@@ -186,6 +197,10 @@ minikube service backend-service      # o: minikube tunnel
 ```bash
 kubectl delete -f k8s/backend/ -f k8s/frontend/
 kubectl delete pod load-generator --ignore-not-found
+
+# el namespace es compartido con la demo 1 del módulo 15
+kubectl delete namespace autoscaling --ignore-not-found
+kubectl config set-context --current --namespace=default
 
 # minikube: si ya no necesitas las métricas
 minikube addons disable metrics-server

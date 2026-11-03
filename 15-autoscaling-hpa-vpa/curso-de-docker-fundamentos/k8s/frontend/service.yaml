@@ -1,12 +1,31 @@
+# =============================================================================
+# FRONTEND · Service
+# -----------------------------------------------------------------------------
+# LoadBalancer para abrirlo desde el navegador en local:
+#   · minikube: `minikube service frontend-service` o `minikube tunnel`
+#   · Docker Desktop: queda en http://localhost:80
+#
+# En un clúster real esto sería `ClusterIP` + un Ingress delante (ver módulo 13).
+#
+#   kubectl get svc frontend-service
+# =============================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend-service
+  namespace: autoscaling
+  labels:
+    app: frontend
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: curso-kubernetes
 spec:
+  type: LoadBalancer
   selector:
     app: frontend
   ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-  type: LoadBalancer
+  - name: http                  # mismo nombre que el puerto del contenedor
+    protocol: TCP
+    port: 80
+    targetPort: http            # por nombre: si cambia el puerto del Pod, no se toca
+    appProtocol: http

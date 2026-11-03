@@ -1,0 +1,25 @@
+# =============================================================================
+# BACKEND · PodDisruptionBudget
+# -----------------------------------------------------------------------------
+# Con el HPA moviendo réplicas, un `kubectl drain` podría llevarse todos los
+# Pods a la vez. El PDB limita el desalojo voluntario a 1 Pod simultáneo.
+#
+# ⚠️ Se usa `maxUnavailable: 1` y no `minAvailable: 1`: con una sola réplica,
+#    `minAvailable: 1` bloquea el drain para siempre.
+#
+#   kubectl get pdb backend-pdb
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: autoscaling
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: curso-kubernetes
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: backend

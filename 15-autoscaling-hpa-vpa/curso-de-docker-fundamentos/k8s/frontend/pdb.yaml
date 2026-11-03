@@ -1,0 +1,25 @@
+# =============================================================================
+# FRONTEND · PodDisruptionBudget
+# -----------------------------------------------------------------------------
+# Limita a 1 el número de Pods del frontend que pueden desalojarse a la vez
+# en un `kubectl drain` o mantenimiento del nodo.
+#
+# ⚠️ `maxUnavailable: 1` (no `minAvailable: 1`): con una sola réplica, el
+#    segundo bloquea el drain para siempre.
+#
+#   kubectl get pdb frontend-pdb
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: autoscaling
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: curso-kubernetes
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: frontend

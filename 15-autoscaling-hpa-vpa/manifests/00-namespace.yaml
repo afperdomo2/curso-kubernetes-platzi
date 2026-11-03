@@ -1,0 +1,19 @@
+# =============================================================================
+# NAMESPACE · Aísla los recursos del módulo 15
+# -----------------------------------------------------------------------------
+# Todo lo del módulo (demo HPA y demo multi-tier) vive aquí, no en `default`.
+# Así no choca con los Deployments del módulo 13, que usan los mismos nombres
+# (`backend-deployment`, `frontend-service`) en `default`.
+#
+# El prefijo `00-` es a propósito: kubectl aplica los archivos de una carpeta
+# en orden alfabético, y el Namespace tiene que existir antes que sus objetos.
+#
+#   kubectl apply -f manifests/
+#   kubectl config set-context --current --namespace=autoscaling
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: autoscaling
+  labels:
+    app.kubernetes.io/part-of: curso-kubernetes

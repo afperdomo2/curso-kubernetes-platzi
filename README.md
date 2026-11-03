@@ -78,9 +78,13 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 │   ├── 📄 backup-job.yaml                       #   Job mysql-backup-manual + PVC + PV
 │   ├── 📄 backup-cronjob.yaml                   #   CronJob mysql-backup (cada minuto; reutiliza PVC/PV)
 ├── 📁 15-autoscaling-hpa-vpa/                   # 📈 Autoscaling (HPA y VPA)
-│   ├── 📄 app.yaml                              #   Deployment nginx + Service (demo del HPA)
-│   ├── 📄 hpa.yaml                              #   HPA my-hpa (1..4 réplicas al 20% de CPU)
-│   ├── 📄 vpa.yaml                              #   VPA my-vpa (requiere instalar CRDs)
+│   ├── 📁 manifests/                            #   Demo 1 (un objeto por archivo)
+│   │   ├── 📄 00-namespace.yaml                 #     Namespace autoscaling
+│   │   ├── 📄 deployment.yaml                   #     Deployment my-app (nginx, 1m CPU)
+│   │   ├── 📄 service.yaml                      #     Service my-app (ClusterIP)
+│   │   ├── 📄 hpa.yaml                          #     HPA my-app (1..4 al 20% de CPU)
+│   │   ├── 📄 pdb.yaml                          #     PodDisruptionBudget my-app
+│   │   └── 📁 optional/vpa.yaml                 #     VPA my-app (requiere CRDs)
 │   ├── 📁 curso-de-docker-fundamentos/          #   Demo 2: app del módulo 13 + HPAs
 └── 📄 README.md                       # 📘 Este archivo
 ```

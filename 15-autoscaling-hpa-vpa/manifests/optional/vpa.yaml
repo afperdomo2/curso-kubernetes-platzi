@@ -1,0 +1,57 @@
+# =============================================================================
+# VPA · Escalado vertical de `my-app` (OPCIONAL)
+# -----------------------------------------------------------------------------
+# Va en `optional/` a propósito: `kubectl apply -f manifests/` NO entra en
+# subcarpetas, así que este archivo solo se aplica cuando tú lo pides.
+#
+# El VPA NO es nativo: antes hay que instalar sus CRDs y componentes
+# (recommender, updater, admission-controller):
+#
+#   git clone https://github.com/kubernetes/autoscaler.git
+#   cd autoscaler/vertical-pod-autoscaler
+#   ./hack/vpa-up.sh
+#
+#   # si falla creando los certificados del admission controller:
+#   bash ./pkg/admission-controller/gencerts.sh
+#
+#   kubectl apply -f manifests/optional/vpa.yaml
+#   kubectl get vpa -n autoscaling
+#   kubectl describe vpa my-app -n autoscaling   # recomendación + si aplica cambios
+#
+# ⚠️ CONFLICTO CON EL HPA (importante)
+#    `manifests/hpa.yaml` y este archivo apuntan al MISMO Deployment.
+#    El HPA mueve `replicas`; el VPA mueve `requests.cpu`.
+#    Si el VPA sube el request, el % que calcula el HPA baja y el HPA quita
+#    réplicas → el VPA vuelve a ajustar → péndulo.
+#    Por eso `updateMode: "Off"`: el VPA solo RECOMIENDA, no toca los Pods.
+#    Alternativas documentadas en el README del módulo:
+#      · controlledResources: ["memory"]  → VPA ajusta memoria, HPA sigue con CPU
+#      · un Deployment aparte solo para el VPA
+# =============================================================================
+apiVersion: autoscaling.k8s.io/v1     # API del VPA (necesita las CRDs instaladas)
+kind: VerticalPodAutoscaler
+metadata:
+  name: my-app
+  namespace: autoscaling
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/component: autoscaler
+    app.kubernetes.io/part-of: curso-kubernetes
+spec:
+  targetRef:                          # a quién ajusta los recursos
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-app
+  updatePolicy:
+    updateMode: "Off"                 # solo recomienda: no reinicia ni cambia requests
+                                      # (Off | Initial | Recreate | Auto)
+  resourcePolicy:
+    containerPolicies:
+    - containerName: '*'              # aplica a todos los contenedores del Pod
+      minAllowed:                     # suelo que el VPA no bajará
+        cpu: 1m
+        memory: 4Mi
+      maxAllowed:                     # techo que el VPA no superará
+        cpu: 8m                       # ⚠️ valores de juguete: en real, 500m–2 CPU
+        memory: 32Mi
+      controlledResources: ["cpu", "memory"]   # métricas que puede recomendar/ajustar

@@ -1,0 +1,76 @@
+# =============================================================================
+# DEPLOYMENT · App de juguete para ver escalar al HPA (nginx)
+# -----------------------------------------------------------------------------
+# 2 réplicas iniciales; el HPA (manifests/hpa.yaml) puede bajarlo a 1 o subirlo
+# a 4 según la CPU.
+#
+# Los `resources` son ABSURDAMENTE pequeños a propósito:
+#   requests.cpu = 1m (una milésima de núcleo)
+# El HPA calcula el porcentaje sobre el REQUEST, así que con 1m cualquier
+# petición supera el 20 % objetivo y el escalado se ve en segundos.
+#
+#   kubectl apply -f manifests/
+#   kubectl get pods -n autoscaling -l app=my-app
+#
+# Funciona igual en minikube (Ubuntu) y en Docker Desktop (Windows 11):
+# usa una imagen pública, no hay nada que construir.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: autoscaling
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: curso-kubernetes
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  replicas: 2                     # punto de partida; el HPA manda después
+  revisionHistoryLimit: 3         # no acumular ReplicaSets de rollouts viejos
+  minReadySeconds: 5              # un Pod cuenta como listo tras 5 s estable
+  progressDeadlineSeconds: 300    # el rollout falla si no avanza en 5 min
+  strategy:
+    type: RollingUpdate           # al cambiar la imagen, reemplaza Pods de a uno
+    rollingUpdate:
+      maxSurge: 1                 # puede crear 1 Pod extra durante la actualización
+      maxUnavailable: 0           # y no deja el servicio sin réplicas disponibles
+  selector:
+    matchLabels:
+      app: my-app                 # ⚠️ inmutable: cambiarlo obliga a recrear el Deployment
+  template:
+    metadata:
+      labels:
+        app: my-app               # la usan el Service, el HPA y el PDB
+        app.kubernetes.io/name: my-app
+        app.kubernetes.io/component: web
+    spec:
+      automountServiceAccountToken: false   # la app no habla con la API de K8s
+      terminationGracePeriodSeconds: 30     # tiempo para cerrar conexiones al salir
+      containers:
+      - name: nginx
+        image: nginx:1.14.2
+        ports:
+        - name: http              # puerto con nombre: Service y probes lo referencian así
+          containerPort: 80
+        readinessProbe:           # sin readiness, el HPA no tiene señal fiable
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 2
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:            # reinicia el contenedor si deja de responder
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+          failureThreshold: 3
+        resources:
+          requests:               # ⚠️ OBLIGATORIO para el HPA: es la base del %
+            memory: "4Mi"
+            cpu: "1m"             # 20 % de 1m = 0,2m → escala con casi nada de tráfico
+          limits:                 # techo del contenedor (QoS Guaranteed al ser igual al request)
+            memory: "8Mi"
+            cpu: "1m"

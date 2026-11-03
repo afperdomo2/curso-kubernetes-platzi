@@ -1,12 +1,31 @@
+# =============================================================================
+# BACKEND · Service
+# -----------------------------------------------------------------------------
+# LoadBalancer para poder abrirlo desde el navegador en local:
+#   · minikube: `minikube service backend-service` o `minikube tunnel`
+#   · Docker Desktop: queda en http://localhost:5001
+#
+# En un clúster real esto sería `ClusterIP` + un Ingress delante (ver módulo 13).
+#
+#   kubectl get svc backend-service
+# =============================================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: backend-service
+  namespace: autoscaling
+  labels:
+    app: backend
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: curso-kubernetes
 spec:
+  type: LoadBalancer
   selector:
     app: backend
   ports:
-    - protocol: TCP
-      port: 5001
-      targetPort: 5001
-  type: LoadBalancer
+  - name: http                  # mismo nombre que el puerto del contenedor
+    protocol: TCP
+    port: 5001
+    targetPort: http            # por nombre: si cambia el puerto del Pod, no se toca
+    appProtocol: http

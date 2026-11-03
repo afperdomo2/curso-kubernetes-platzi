@@ -1,0 +1,48 @@
+# =============================================================================
+# HPA · Escalado horizontal de `my-app`
+# -----------------------------------------------------------------------------
+# Mantiene entre 1 y 4 réplicas intentando que el consumo medio de CPU de los
+# Pods se quede en el 20 % de lo que piden (requests.cpu: 1m).
+#
+# Requisitos:
+#   1. metrics-server funcionando (si no, TARGETS sale <unknown>)
+#        · minikube (Ubuntu):   minikube addons enable metrics-server
+#        · Docker Desktop Win:  kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+#   2. El contenedor declara resources.requests.cpu (sin eso no hay %)
+#
+#   kubectl apply -f manifests/
+#   kubectl get hpa -n autoscaling
+#   kubectl describe hpa my-app -n autoscaling   # los eventos explican cada decisión
+# =============================================================================
+apiVersion: autoscaling/v2             # v2 = métricas flexibles (v1 está obsoleto)
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-app
+  namespace: autoscaling
+  labels:                              # sin labels, `get hpa -l ...` no lo encuentra
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/component: autoscaler
+    app.kubernetes.io/part-of: curso-kubernetes
+spec:
+  scaleTargetRef:                      # quién escala: el Deployment de manifests/
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-app
+  minReplicas: 1                       # nunca baja de aquí, aunque no haya tráfico
+  maxReplicas: 4                       # techo aunque la métrica se dispare
+  behavior:                            # el freno anti-oscilación, explícito
+    scaleUp:
+      stabilizationWindowSeconds: 0    # subir rápido: la carga no espera
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30              # como mucho duplica cada 30 s
+    scaleDown:
+      stabilizationWindowSeconds: 300  # bajar despacio: ventana de 5 min
+  metrics:
+  - type: Resource                     # métrica de recursos del Pod (CPU/RAM)
+    resource:
+      name: cpu
+      target:
+        type: Utilization              # % medio sobre requests.cpu
+        averageUtilization: 20         # 20 % de 1m = 0,2m → escala con poca carga

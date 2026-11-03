@@ -1,0 +1,15 @@
+# =============================================================================
+# NAMESPACE · Mismo namespace que la demo del módulo 15
+# -----------------------------------------------------------------------------
+# Si ya aplicaste `manifests/00-namespace.yaml`, este archivo es idempotente.
+# Si vienes directo a esta demo, aplícalo antes que nada.
+#
+#   kubectl apply -f k8s/00-namespace.yaml
+#   kubectl config set-context --current --namespace=autoscaling
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: autoscaling
+  labels:
+    app.kubernetes.io/part-of: curso-kubernetes

@@ -1,0 +1,30 @@
+# =============================================================================
+# PodDisruptionBudget · Protege la app durante mantenimientos
+# -----------------------------------------------------------------------------
+# Un PDB limita cuántos Pods pueden desalojarse a la VEZ en las interrupciones
+# VOLUNTARIAS: `kubectl drain`, actualizaciones del nodo, mantenimiento del
+# cloud. Si no se puede cumplir, el desalojo ESPERA en vez de tumbar la app.
+#
+# NO protege de: crash del Pod, OOMKilled, `kubectl delete pod` o un nodo caído.
+#
+# ⚠️ Se usa `maxUnavailable: 1` y NO `minAvailable: 1` a propósito:
+#    con una sola réplica, `minAvailable: 1` bloquea `kubectl drain` para
+#    siempre (no hay nodo donde reubicar el único Pod).
+#
+#   kubectl get pdb -n autoscaling
+#   kubectl describe pdb my-app -n autoscaling
+# =============================================================================
+apiVersion: policy/v1                 # desde 1.25 ya no existe policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: my-app
+  namespace: autoscaling
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/component: web
+    app.kubernetes.io/part-of: curso-kubernetes
+spec:
+  maxUnavailable: 1                   # como mucho 1 Pod desalojado a la vez
+  selector:
+    matchLabels:
+      app: my-app                     # misma label que los Pods del Deployment
