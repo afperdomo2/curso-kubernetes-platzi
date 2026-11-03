@@ -93,16 +93,18 @@ fetch('http://localhost:5001/getMyInfo', requestOptions)
   });
 ```
 
-> ⚠️ Ese `localhost:5001` está **codificado a mano**: funciona con Docker Compose, pero en Kubernetes es una trampa. Lo analizamos más abajo, en **El detalle del `localhost` en `requests.js`**.
+> ⚠️ Ese `localhost:5001` es una **trampa en Kubernetes**: el navegador lo resuelve en tu máquina, no en el clúster. Ver **El detalle del `localhost` en `requests.js`**.
 
 ## 🐳 Paso 0: probarlo con Docker Compose
 
-Antes de tocar Kubernetes conviene verificar que las dos capas funcionan juntas. Hazlo en una terminal **sin** `minikube docker-env` activo, para que los puertos se publiquen en tu máquina:
+Antes de tocar Kubernetes conviene verificar que las dos capas funcionan juntas:
 
 ```bash
 cd curso-de-docker-fundamentos
-docker-compose up --build
+docker compose up --build
 ```
+
+> 💡 Compose v2 se invoca como `docker compose` (plugin del CLI). El binario antiguo `docker-compose` ya **no** viene instalado en Ubuntu.
 
 | URL | Qué deberías ver |
 |-----|------------------|
@@ -115,41 +117,26 @@ docker-compose up --build
 
 Las imágenes **no** están en Docker Hub: viven en tu máquina. Si el clúster no las ve, obtendrás `ErrImagePull` / `ImagePullBackOff`.
 
+Desde Kubernetes 1.24 los nodos no usan Docker: minikube arranca con **containerd**, y es el runtime del clúster quien guarda las imágenes. Por eso no hay que apuntar el `docker` del host al clúster; se construye **dentro** del runtime:
+
 ```bash
 minikube start --driver=docker
 
-# Apunta el cliente Docker al daemon DENTRO de minikube
-eval $(minikube docker-env)
-docker ps          # ahora ves los contenedores de minikube
+minikube image build -t backend:latest  ./backend
+minikube image build -t frontend:latest ./frontend
 
-docker-compose build
-docker images | grep -E "backend|frontend"
+minikube image ls --format table | grep -E "backend|frontend"
 ```
-
-> 🪟 **En PowerShell** el `eval` no existe; usa:
-> ```powershell
-> minikube docker-env | Invoke-Expression
-> ```
-> Y recuerda hacerlo en **la misma terminal** donde ejecutes `docker-compose build`.
-
-### ¿Y `eval $(minikube docker-env)` qué hace?
 
 ```mermaid
 flowchart LR
-    subgraph HOST["💻 Tu máquina"]
-        D1["🐳 Docker Desktop"]
-        CLI["docker-compose build"]
-    end
-    subgraph MINI["☸️ minikube (contenedor)"]
-        D2["🐳 daemon Docker"]
-        IMG["📦 backend:latest<br/>frontend:latest"]
-    end
-    CLI -->|"eval $(minikube docker-env)"| D2
-    D2 --> IMG
+    SRC["📁 backend/ · frontend/"] --> CLI["minikube image build"]
+    CLI -->|"buildctl"| CT["🗄️ containerd del nodo<br/>namespace k8s.io"]
+    CT --> IMG["📦 backend:latest<br/>frontend:latest"]
     IMG -->|"imagePullPolicy: Never"| POD["📦 Pods del clúster"]
 ```
 
-`eval $(minikube docker-env)` exporta `DOCKER_HOST`/`DOCKER_TLS_VERIFY` para que tu `docker` hable con el daemon **de dentro** de minikube. Así las imágenes se construyen donde el kubelet puede verlas, sin pasar por un registry.
+> ⚠️ Lánzalos desde `curso-de-docker-fundamentos`, pasando el **directorio** del servicio como contexto. No uses `-f backend/Dockerfile`: en minikube v1.39 esa combinación termina en silencio (`exit 0`, sin compilar nada). Y olvida `eval $(minikube docker-env)`: con containerd es experimental y falla; `minikube image build` es la ruta soportada.
 
 ### `imagePullPolicy: Never`
 
@@ -164,9 +151,49 @@ imagePullPolicy: Never
 |-------|----------------|---------------|
 | `Always` (default con `:latest`) | Siempre intenta bajar la imagen | Imágenes en un registry |
 | `IfNotPresent` | La baja solo si no está | Tags versionados |
-| 🎯 **`Never`** | **Nunca** la baja: usa la que ya está en el nodo | Desarrollo local con `minikube docker-env` |
+| 🎯 **`Never`** | **Nunca** la baja: usa la que ya está en el nodo | Imágenes cargadas con `minikube image build` |
 
-> ❗ Sin `Never`, Kubernetes intentaría descargar `backend:latest` de Docker Hub, fallaría y el Pod quedaría en `ImagePullBackOff`.
+> ❗ Sin `Never`, Kubernetes intentaría descargar `backend:latest` de Docker Hub y el Pod quedaría en `ImagePullBackOff`. `minikube image build` deja la imagen en el *namespace* `k8s.io`, el mismo que consulta el kubelet: funciona sin tocar nada más.
+
+## 🔄 Recompilar tras editar el código
+
+La imagen es una **copia** del código, no un enlace: el `COPY /sitio /usr/share/nginx/html` ocurre una sola vez, durante el build. Editar `requests.js` o `app.py` **no cambia** lo que sirve el Pod que ya está corriendo.
+
+```mermaid
+flowchart LR
+    H["✏️ editas sitio/requests.js"] --> A["📁 archivo del host<br/>(nadie lo lee)"]
+    IMG["📦 imagen frontend:latest<br/>(copia del build)"] --> POD["📦 Pod"]
+    A -.->|"❌ sin enlace"| POD
+    H -.->|"hay que reconstruir"| IMG
+```
+
+Además el Deployment sigue diciendo `image: frontend:latest`, así que su estado deseado no cambió y Kubernetes no reemplaza nada. Hacen falta **dos** pasos:
+
+```bash
+# desde curso-de-docker-fundamentos
+minikube image build -t frontend:latest ./frontend   # nueva foto del código
+kubectl rollout restart deploy/frontend-deployment   # Pods nuevos con esa imagen
+kubectl rollout status deploy/frontend-deployment
+```
+
+Para el backend, igual con `./backend` y `deploy/backend-deployment`.
+
+| Acción | ¿Se ve en el Pod? |
+|--------|:-----------------:|
+| Editas el archivo en tu máquina | ❌ |
+| Solo `minikube image build` | ⚠️ imagen nueva en el nodo, Pods viejos |
+| `minikube image build` + `kubectl rollout restart` | ✅ |
+| `minikube image build -t frontend:v2` + `kubectl set image` | ✅ y sin `restart` manual |
+
+Verifica qué versión sirve el Pod:
+
+```bash
+sha256sum frontend/sitio/requests.js
+kubectl exec deploy/frontend-deployment -- sha256sum /usr/share/nginx/html/requests.js
+# hashes iguales → el Pod ya tiene tu última versión
+```
+
+> 🧠 La raíz del problema es `:latest`, una etiqueta **mutable**. Con `frontend:v2` el cambio en el Deployment ya es detectable y `kubectl set image` dispara el rollout solo. En producción nunca se usa `:latest`.
 
 ## 🚀 Paso 2: desplegar en Kubernetes
 
@@ -278,7 +305,7 @@ minikube tunnel
 kubectl get svc frontend-service   # EXTERNAL-IP deja de ser <pending>
 ```
 
-> 💡 En Linux/macOS el túnel pide `sudo` porque necesita bindear IPs locales. El comando debe quedar **abierto** mientras uses la app.
+> 💡 En Linux el túnel pide `sudo` porque necesita bindear IPs locales. El comando debe quedar **abierto** mientras uses la app.
 
 ## ⚠️ El detalle del `localhost` en `requests.js`
 
@@ -300,7 +327,7 @@ fetch('http://localhost:5001/getMyInfo')
 
 ```bash
 # terminal 1: el backend queda accesible en localhost:5001 del host
-# (requiere que el puerto 5001 esté libre, p. ej. sin docker-compose up)
+# (requiere que el puerto 5001 esté libre, p. ej. sin docker compose up)
 kubectl port-forward svc/backend-service 5001:5001
 
 # terminal 2: abre el frontend
@@ -343,7 +370,7 @@ spec:
               number: 80
 ```
 
-> ⚠️ En minikube hay que habilitar el controlador antes: `minikube addons enable ingress`. Y tras editar `requests.js` hay que **reconstruir** la imagen (`docker-compose build frontend`) y reiniciar el Deployment (`kubectl rollout restart deploy/frontend-deployment`).
+> ⚠️ En minikube hay que habilitar el controlador antes: `minikube addons enable ingress`. Tras editar `requests.js`, reconstruye la imagen y reinicia el Deployment (ver **Recompilar tras editar el código**).
 
 ## 📈 Paso 5: escalar, actualizar y auto-repararse
 
@@ -354,7 +381,8 @@ Recuerda del [módulo 6](../06-pods-replicasets-deployments/README.md): el Deplo
 kubectl scale deploy frontend-deployment --replicas=3
 kubectl get pods -l app=frontend
 
-# Rolling update al cambiar la imagen (requiere haber construido backend:v2)
+# Rolling update al cambiar la imagen
+# (1º construirla: minikube image build -t backend:v2 ./backend)
 kubectl set image deploy/backend-deployment backend=backend:v2
 kubectl rollout status deploy/backend-deployment
 kubectl rollout undo deploy/backend-deployment
@@ -377,7 +405,7 @@ kubectl get pods -l app=backend -w
 |---------------------|---------------------------|
 | `services: backend:` | `Deployment` + `Service` (backend) |
 | `image: backend` | `image: backend:latest` + `imagePullPolicy: Never` |
-| `build: ./backend` | `docker-compose build` con `minikube docker-env` |
+| `build: ./backend` | `minikube image build -t backend:latest ./backend` (imagen dentro del runtime del nodo) |
 | `ports: 5001:5001` | `Service type: LoadBalancer` (o `NodePort`) |
 | `depends_on: backend` | No existe: el **DNS** `backend-service` y los reintentos lo sustituyen |
 | Red interna de Compose | Red plana del clúster + CoreDNS |
@@ -388,21 +416,21 @@ kubectl get pods -l app=backend -w
 
 | Síntoma | Causa probable | Solución |
 |---------|----------------|----------|
-| `ImagePullBackOff` / `ErrImagePull` | Imagen no está en el nodo | `eval $(minikube docker-env)` + `docker-compose build` + `kubectl rollout restart` |
+| `ImagePullBackOff` / `ErrImagePull` | Imagen no está en el runtime del nodo | `minikube image build -t backend:latest ./backend` + `kubectl rollout restart deploy/backend-deployment` |
+| `docker-compose: no se encontró la orden` | Compose v1 no viene instalado en Ubuntu | Usa `docker compose` (v2) |
+| `connection refused` a `127.0.0.1:<puerto alto>` o `404 page not found` al construir | `DOCKER_HOST` heredado de un `minikube docker-env` viejo (solo válido con runtime docker) | Abre una terminal nueva y usa `minikube image build` |
+| `minikube image build` no compila y no imprime nada | `-f` apunta a un Dockerfile fuera del contexto | Omite `-f` |
 | Pod `Running` pero web sin datos | `fetch` a `localhost:5001` | `kubectl port-forward` o Ingress (ver arriba) |
 | `Endpoints: <none>` | Selector del Service ≠ labels del Pod | Revisa `spec.selector.matchLabels` |
 | `EXTERNAL-IP: <pending>` | `LoadBalancer` en minikube | `minikube tunnel` o `minikube service` |
 | `CrashLoopBackOff` en backend | Error de dependencias o puerto | `kubectl logs deploy/backend-deployment` |
-| La página no cambia tras recompilar | Sigue la imagen vieja y `:latest` | `imagePullPolicy: Never` + `kubectl rollout restart deploy/frontend-deployment` |
+| La página no cambia tras recompilar | Sigue la imagen vieja y `:latest` | `minikube image build` + `kubectl rollout restart deploy/frontend-deployment` |
 | CORS bloqueado | `flask_cors` no aplicado | Verifica que `CORS(app)` esté en `app.py` |
 
 ## 🧹 Limpieza
 
 ```bash
 kubectl delete -f backend/ -f frontend/
-
-# opcional: salir del daemon de minikube en esta terminal
-eval $(minikube docker-env -u)
 
 minikube stop        # apaga el clúster
 minikube delete      # lo borra por completo

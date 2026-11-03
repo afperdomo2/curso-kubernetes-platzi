@@ -60,18 +60,22 @@ minikube addons enable registry
 minikube addons enable metrics-server
 ```
 
-## 🔀 Apuntar kubectl a Docker (opcional)
+## 🔀 Apuntar el CLI al Docker del clúster (solo runtime Docker)
 
-Para construir imágenes directamente contra el Docker *dentro* del clúster:
+Si el clúster se creó con `--container-runtime=docker` (no es el default: minikube usa **containerd**), puedes construir imágenes contra el Docker de dentro del clúster:
 
 ```bash
 eval $(minikube docker-env)
+docker ps          # ahora ves los contenedores del clúster de minikube
 ```
 
-> ⚠️ **Windows / PowerShell**: `eval $(...)` es sintaxis **Bash** (Git Bash, WSL o Linux). En PowerShell se traduce a:
-> ```powershell
-> & minikube -p minikube docker-env --shell powershell | Invoke-Expression
-> ```
+Con containerd, en su lugar:
+
+```bash
+minikube image build -t mi-imagen:latest ./mi-proyecto
+```
+
+> 💡 El porqué y el flujo completo están en el [módulo 13](../13-multi-tier/README.md).
 
 ## 🐳 Ver los contenedores del clúster
 
@@ -79,7 +83,7 @@ eval $(minikube docker-env)
 docker ps
 ```
 
-Nota: tras ejecutar `eval $(minikube docker-env)`, `docker ps` muestra los contenedores del clúster de minikube. Para volver al Docker de tu host:
+Nota: **con runtime Docker**, tras ejecutar `eval $(minikube docker-env)`, `docker ps` muestra los contenedores del clúster de minikube. Para volver al Docker de tu host:
 
 ```bash
 eval $(minikube docker-env -u)

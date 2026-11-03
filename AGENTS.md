@@ -17,7 +17,7 @@ Study-notes repository for the Platzi Kubernetes course. **Docs only** — there
 
 ## Commands in docs
 
-- Shell snippets in the notes use **Bash** syntax (`eval $(minikube docker-env)`, `export`). The host is Windows; on PowerShell these snippets need conversion — never claim they run as-is in a Windows terminal.
+- Shell snippets in the notes use **Bash** syntax (`export`, `$(...)`, `${...}`). The host is **Linux (Ubuntu)**; no PowerShell conversion is needed, and docs should not include Windows/PowerShell variants.
 - Any kubectl/minikube commands are informational documentation, not executed against a live cluster.
 
 ## Editing scope
