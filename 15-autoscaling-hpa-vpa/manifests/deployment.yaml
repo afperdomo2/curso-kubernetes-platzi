@@ -9,8 +9,11 @@
 # El HPA calcula el porcentaje sobre el REQUEST, así que con 1m cualquier
 # petición supera el 20 % objetivo y el escalado se ve en segundos.
 #
+# ⚠️ Si venías de la versión anterior (con `my-app`), el selector es inmutable:
+#   kubectl delete deploy,svc,hpa,pdb -l app.kubernetes.io/part-of=curso-kubernetes
+#
 #   kubectl apply -f manifests/
-#   kubectl get pods -n autoscaling -l app=my-app
+#   kubectl get pods -n autoscaling -l app=web
 #
 # Funciona igual en minikube (Ubuntu) y en Docker Desktop (Windows 11):
 # usa una imagen pública, no hay nada que construir.
@@ -18,10 +21,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-app
+  name: web
   namespace: autoscaling
   labels:
-    app.kubernetes.io/name: my-app
+    app.kubernetes.io/name: web
     app.kubernetes.io/component: web
     app.kubernetes.io/part-of: curso-kubernetes
     app.kubernetes.io/managed-by: kubectl
@@ -37,12 +40,12 @@ spec:
       maxUnavailable: 0           # y no deja el servicio sin réplicas disponibles
   selector:
     matchLabels:
-      app: my-app                 # ⚠️ inmutable: cambiarlo obliga a recrear el Deployment
+      app: web                    # ⚠️ inmutable: cambiarlo obliga a recrear el Deployment
   template:
     metadata:
       labels:
-        app: my-app               # la usan el Service, el HPA y el PDB
-        app.kubernetes.io/name: my-app
+        app: web                  # la usan el Service, el HPA y el PDB
+        app.kubernetes.io/name: web
         app.kubernetes.io/component: web
     spec:
       automountServiceAccountToken: false   # la app no habla con la API de K8s

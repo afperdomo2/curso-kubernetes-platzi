@@ -38,11 +38,11 @@ flowchart LR
 | Archivo | Qué crea |
 |---------|----------|
 | [`manifests/00-namespace.yaml`](manifests/00-namespace.yaml) | Namespace `autoscaling` (aísla el módulo del resto del curso) |
-| [`manifests/deployment.yaml`](manifests/deployment.yaml) | Deployment `my-app` (`nginx:1.14.2`, 2 réplicas, probes y `requests` de 1m) |
-| [`manifests/service.yaml`](manifests/service.yaml) | Service `my-app` (ClusterIP, puerto con nombre `http`) |
-| [`manifests/hpa.yaml`](manifests/hpa.yaml) | HPA `my-app` → 1..4 réplicas al **20 % de CPU**, con `behavior` explícito |
-| [`manifests/pdb.yaml`](manifests/pdb.yaml) | PDB `my-app` → `maxUnavailable: 1` (protege los drenados del nodo) |
-| [`manifests/optional/vpa.yaml`](manifests/optional/vpa.yaml) | VPA `my-app` (opcional: necesita CRDs) |
+| [`manifests/deployment.yaml`](manifests/deployment.yaml) | Deployment `web` (`nginx:1.14.2`, 2 réplicas, probes y `requests` de 1m) |
+| [`manifests/service.yaml`](manifests/service.yaml) | Service `web` (ClusterIP, puerto con nombre `http`) |
+| [`manifests/hpa.yaml`](manifests/hpa.yaml) | HPA `web-hpa` → 1..4 réplicas al **20 % de CPU**, con `behavior` explícito |
+| [`manifests/pdb.yaml`](manifests/pdb.yaml) | PDB `web-pdb` → `maxUnavailable: 1` (protege los drenados del nodo) |
+| [`manifests/optional/vpa.yaml`](manifests/optional/vpa.yaml) | VPA `web-vpa` (opcional: necesita CRDs) |
 | [`curso-de-docker-fundamentos/`](curso-de-docker-fundamentos/README.md) | Demo 2: la app del módulo 13 + dos HPAs |
 
 > 🗂️ `optional/` está en una subcarpeta a propósito: `kubectl apply -f manifests/` **no** entra en subdirectorios, así que el VPA nunca se aplica sin querer (fallaría sin las CRDs).
@@ -97,15 +97,15 @@ El prefijo `00-` del namespace no es decorativo: kubectl aplica los archivos de 
 `TARGETS` empieza en `<unknown>`: el HPA necesita que metrics-server tenga al menos una muestra de los Pods. En este clúster tardó **~2 minutos**:
 
 ```text
-NAME     REFERENCE         TARGETS              MINPODS   MAXPODS   REPLICAS
-my-app   Deployment/my-app cpu: <unknown>/20%   1         4         2
+NAME      REFERENCE         TARGETS              MINPODS   MAXPODS   REPLICAS
+web-hpa   Deployment/web    cpu: <unknown>/20%   1         4         2
 ```
 
 y después:
 
 ```text
-NAME     REFERENCE         TARGETS       MINPODS   MAXPODS   REPLICAS
-my-app   Deployment/my-app cpu: 0%/20%   1         4         2
+NAME      REFERENCE         TARGETS       MINPODS   MAXPODS   REPLICAS
+web-hpa   Deployment/web    cpu: 0%/20%   1         4         2
 ```
 
 > 🔍 El porcentaje es siempre **relativo al `requests` del contenedor**, no al uso del nodo: `1m × 20 % = 0,2m`. Por eso este demo escala con nada de tráfico. Con `requests: 100m` y objetivo 80 % haría falta mucha más carga (es lo que hace la [Demo 2](curso-de-docker-fundamentos/README.md)).
@@ -114,7 +114,7 @@ my-app   Deployment/my-app cpu: 0%/20%   1         4         2
 
 ```bash
 kubectl run load-generator --image=busybox:1.36 --restart=Never -- \
-  /bin/sh -c "while sleep 0.001; do wget -q -O- http://my-app; done"
+  /bin/sh -c "while sleep 0.001; do wget -q -O- http://web; done"
 
 # en otra terminal
 watch -n 5 kubectl get hpa,pods
@@ -123,8 +123,8 @@ watch -n 5 kubectl get hpa,pods
 En ~40 segundos el HPA decide escalar:
 
 ```text
-NAME     REFERENCE         TARGETS      MINPODS   MAXPODS   REPLICAS
-my-app   Deployment/my-app cpu: 50%/20%   1         4         4
+NAME      REFERENCE         TARGETS      MINPODS   MAXPODS   REPLICAS
+web-hpa   Deployment/web    cpu: 50%/20%   1         4         4
 ```
 
 ```text
@@ -134,7 +134,7 @@ Normal  SuccessfulRescale  New size: 4; reason: cpu resource utilization (percen
 Ese evento (y no el `kubectl get`) es la prueba de que **es el HPA** el que cambió el número de réplicas:
 
 ```bash
-kubectl describe hpa my-app | sed -n '/Events/,$p'
+kubectl describe hpa web-hpa | sed -n '/Events/,$p'
 ```
 
 ### El `behavior` del HPA
@@ -159,7 +159,7 @@ kubectl delete pod load-generator
 El descenso **no es inmediato**: se respeta la ventana de `scaleDown` (5 minutos) para no oscilar con cada bache de tráfico. Mientras dura:
 
 ```bash
-kubectl describe hpa my-app | grep -A2 Conditions
+kubectl describe hpa web-hpa | grep -A2 Conditions
 # AbleToScale  True  ScaleDownStabilized  recent recommendations were higher…
 ```
 
@@ -185,7 +185,7 @@ Aplicar el manifiesto del módulo y leer la recomendación:
 ```bash
 kubectl apply -f manifests/optional/vpa.yaml
 kubectl get vpa
-kubectl describe vpa my-app
+kubectl describe vpa web-vpa
 ```
 
 | `updateMode` | Qué hace |
@@ -197,7 +197,7 @@ kubectl describe vpa my-app
 
 ### ⚠️ HPA y VPA sobre el mismo Deployment
 
-Los dos apuntan a `my-app`, y mueven palancas que se afectan entre sí:
+Los dos apuntan a `web`, y mueven palancas que se afectan entre sí:
 
 | Objeto | Qué cambia | Efecto cruzado |
 |--------|------------|----------------|
@@ -224,7 +224,7 @@ Resultado: un péndulo (y reinicios de Pods cada vez que el VPA ajusta). Por eso
 
 ```bash
 kubectl get pdb
-kubectl describe pdb my-app
+kubectl describe pdb web-pdb
 ```
 
 > ⚠️ Se usa `maxUnavailable: 1` y **no** `minAvailable: 1`: con una sola réplica, `minAvailable: 1` bloquea `kubectl drain` para siempre (no hay nodo donde reubicar el único Pod).
@@ -253,6 +253,7 @@ Pasos completos en **[curso-de-docker-fundamentos/README.md](curso-de-docker-fun
 | `behavior` explícito | HPAs | Deja escrito el freno de bajada en vez de depender del default |
 | `PodDisruptionBudget` | `pdb.yaml` | Un drain no se lleva todas las réplicas a la vez |
 | Namespace propio | `00-namespace.yaml` | Evita chocar con los recursos del módulo 13 |
+| Nombres por función | Todos | El workload lleva el nombre de la app (`web`); las políticas, `app + tipo` (`web-hpa`, `web-vpa`, `web-pdb`). Nunca el kind en el workload: `web-deployment` ❌ |
 
 > 🧭 **Deuda consciente** (para una siguiente iteración, no para este módulo): `LoadBalancer` en vez de `ClusterIP` + Ingress; `nginx:1.14.2` está EOL; `securityContext` con `runAsNonRoot`/`readOnlyRootFilesystem` requiere la imagen `nginx-unprivileged`; y los `requests` de 1m son solo para la demo.
 
@@ -275,7 +276,7 @@ Pasos completos en **[curso-de-docker-fundamentos/README.md](curso-de-docker-fun
 ```bash
 # borra los objetos del módulo por label (demo 1 y demo 2 comparten namespace)
 kubectl delete deploy,svc,hpa,pdb -l app.kubernetes.io/part-of=curso-kubernetes --ignore-not-found
-kubectl delete vpa my-app --ignore-not-found
+kubectl delete vpa web-vpa --ignore-not-found
 kubectl delete pod load-generator --ignore-not-found
 
 # el namespace vacío y volver al de siempre

@@ -1,8 +1,10 @@
 # =============================================================================
-# VPA · Escalado vertical de `my-app` (OPCIONAL)
+# VPA · Escalado vertical de `web` (OPCIONAL)
 # -----------------------------------------------------------------------------
 # Va en `optional/` a propósito: `kubectl apply -f manifests/` NO entra en
 # subcarpetas, así que este archivo solo se aplica cuando tú lo pides.
+#
+# Se llama `web-vpa` (app + tipo) porque es una política sobre `web`.
 #
 # El VPA NO es nativo: antes hay que instalar sus CRDs y componentes
 # (recommender, updater, admission-controller):
@@ -16,10 +18,10 @@
 #
 #   kubectl apply -f manifests/optional/vpa.yaml
 #   kubectl get vpa -n autoscaling
-#   kubectl describe vpa my-app -n autoscaling   # recomendación + si aplica cambios
+#   kubectl describe vpa web-vpa -n autoscaling   # recomendación + si aplica cambios
 #
 # ⚠️ CONFLICTO CON EL HPA (importante)
-#    `manifests/hpa.yaml` y este archivo apuntan al MISMO Deployment.
+#    `manifests/hpa.yaml` y este archivo apuntan al MISMO Deployment (`web`).
 #    El HPA mueve `replicas`; el VPA mueve `requests.cpu`.
 #    Si el VPA sube el request, el % que calcula el HPA baja y el HPA quita
 #    réplicas → el VPA vuelve a ajustar → péndulo.
@@ -31,17 +33,17 @@
 apiVersion: autoscaling.k8s.io/v1     # API del VPA (necesita las CRDs instaladas)
 kind: VerticalPodAutoscaler
 metadata:
-  name: my-app
+  name: web-vpa
   namespace: autoscaling
   labels:
-    app.kubernetes.io/name: my-app
+    app.kubernetes.io/name: web
     app.kubernetes.io/component: autoscaler
     app.kubernetes.io/part-of: curso-kubernetes
 spec:
   targetRef:                          # a quién ajusta los recursos
     apiVersion: apps/v1
     kind: Deployment
-    name: my-app
+    name: web
   updatePolicy:
     updateMode: "Off"                 # solo recomienda: no reinicia ni cambia requests
                                       # (Off | Initial | Recreate | Auto)

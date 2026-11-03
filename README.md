@@ -80,11 +80,11 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 ├── 📁 15-autoscaling-hpa-vpa/                   # 📈 Autoscaling (HPA y VPA)
 │   ├── 📁 manifests/                            #   Demo 1 (un objeto por archivo)
 │   │   ├── 📄 00-namespace.yaml                 #     Namespace autoscaling
-│   │   ├── 📄 deployment.yaml                   #     Deployment my-app (nginx, 1m CPU)
-│   │   ├── 📄 service.yaml                      #     Service my-app (ClusterIP)
-│   │   ├── 📄 hpa.yaml                          #     HPA my-app (1..4 al 20% de CPU)
-│   │   ├── 📄 pdb.yaml                          #     PodDisruptionBudget my-app
-│   │   └── 📁 optional/vpa.yaml                 #     VPA my-app (requiere CRDs)
+│   │   ├── 📄 deployment.yaml                   #     Deployment web (nginx, 1m CPU)
+│   │   ├── 📄 service.yaml                      #     Service web (ClusterIP)
+│   │   ├── 📄 hpa.yaml                          #     HPA web-hpa (1..4 al 20% de CPU)
+│   │   ├── 📄 pdb.yaml                          #     PodDisruptionBudget web-pdb
+│   │   └── 📁 optional/vpa.yaml                 #     VPA web-vpa (requiere CRDs)
 │   ├── 📁 curso-de-docker-fundamentos/          #   Demo 2: app del módulo 13 + HPAs
 └── 📄 README.md                       # 📘 Este archivo
 ```

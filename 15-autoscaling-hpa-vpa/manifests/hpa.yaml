@@ -1,8 +1,11 @@
 # =============================================================================
-# HPA · Escalado horizontal de `my-app`
+# HPA · Escalado horizontal de `web`
 # -----------------------------------------------------------------------------
 # Mantiene entre 1 y 4 réplicas intentando que el consumo medio de CPU de los
 # Pods se quede en el 20 % de lo que piden (requests.cpu: 1m).
+#
+# Se llama `web-hpa` (app + tipo de política) porque NO es la app: es la regla
+# de escalado que apunta a ella. El Deployment y el Service sí se llaman `web`.
 #
 # Requisitos:
 #   1. metrics-server funcionando (si no, TARGETS sale <unknown>)
@@ -12,22 +15,22 @@
 #
 #   kubectl apply -f manifests/
 #   kubectl get hpa -n autoscaling
-#   kubectl describe hpa my-app -n autoscaling   # los eventos explican cada decisión
+#   kubectl describe hpa web-hpa -n autoscaling   # los eventos explican cada decisión
 # =============================================================================
 apiVersion: autoscaling/v2             # v2 = métricas flexibles (v1 está obsoleto)
 kind: HorizontalPodAutoscaler
 metadata:
-  name: my-app
+  name: web-hpa
   namespace: autoscaling
   labels:                              # sin labels, `get hpa -l ...` no lo encuentra
-    app.kubernetes.io/name: my-app
+    app.kubernetes.io/name: web
     app.kubernetes.io/component: autoscaler
     app.kubernetes.io/part-of: curso-kubernetes
 spec:
   scaleTargetRef:                      # quién escala: el Deployment de manifests/
     apiVersion: apps/v1
     kind: Deployment
-    name: my-app
+    name: web
   minReplicas: 1                       # nunca baja de aquí, aunque no haya tráfico
   maxReplicas: 4                       # techo aunque la métrica se dispare
   behavior:                            # el freno anti-oscilación, explícito

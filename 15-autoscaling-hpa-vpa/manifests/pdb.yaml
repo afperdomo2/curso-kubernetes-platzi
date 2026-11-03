@@ -11,20 +11,22 @@
 #    con una sola réplica, `minAvailable: 1` bloquea `kubectl drain` para
 #    siempre (no hay nodo donde reubicar el único Pod).
 #
+# Se llama `web-pdb` (app + tipo) porque es una política sobre `web`, no la app.
+#
 #   kubectl get pdb -n autoscaling
-#   kubectl describe pdb my-app -n autoscaling
+#   kubectl describe pdb web-pdb -n autoscaling
 # =============================================================================
 apiVersion: policy/v1                 # desde 1.25 ya no existe policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
-  name: my-app
+  name: web-pdb
   namespace: autoscaling
   labels:
-    app.kubernetes.io/name: my-app
+    app.kubernetes.io/name: web
     app.kubernetes.io/component: web
     app.kubernetes.io/part-of: curso-kubernetes
 spec:
   maxUnavailable: 1                   # como mucho 1 Pod desalojado a la vez
   selector:
     matchLabels:
-      app: my-app                     # misma label que los Pods del Deployment
+      app: web                        # misma label que los Pods del Deployment
