@@ -2,7 +2,7 @@
 # FRONTEND · Service
 # -----------------------------------------------------------------------------
 # LoadBalancer para abrirlo desde el navegador en local:
-#   · minikube: `minikube service frontend-service` o `minikube tunnel`
+#   · minikube: `minikube service frontend-service -n autoscaling` o `minikube tunnel`
 #   · Docker Desktop: queda en http://localhost:80
 #
 # En un clúster real esto sería `ClusterIP` + un Ingress delante (ver módulo 13).

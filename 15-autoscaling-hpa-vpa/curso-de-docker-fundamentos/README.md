@@ -39,7 +39,7 @@ flowchart LR
 | Clúster arriba | `minikube start --driver=docker` | *Enable Kubernetes* en Ajustes |
 | metrics-server | `minikube addons enable metrics-server` | `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml` |
 | Imágenes locales | **Ruta A**: `minikube image build` | **Ruta B**: `docker build` (el clúster usa el mismo almacén) |
-| Abrir un Service | `minikube service frontend-service` | `http://localhost:80` |
+| Abrir un Service | `minikube service frontend-service -n autoscaling` | `http://localhost:80` |
 
 > 💡 Comprueba en qué clúster estás antes de aplicar nada: `kubectl config current-context` → `minikube` o `docker-desktop`.
 
@@ -170,15 +170,22 @@ Al borrar el generador de carga (`kubectl delete pod load-generator`) las répli
 ## 5️⃣ Probar la app en el navegador
 
 ```bash
-# 🐳 minikube (Ubuntu)
-minikube service frontend-service
-minikube service backend-service      # o: minikube tunnel
+# 🐳 minikube (Ubuntu): imprime la URL sin abrir el navegador
+minikube service frontend-service -n autoscaling --url
 
-# 🖥️ Docker Desktop (Windows 11): los LoadBalancer ya escuchan en localhost
-#    http://localhost:80  y  http://localhost:5001/getMyInfo
+# deja el backend en localhost:5001 (lo necesita el JS del frontend)
+kubectl port-forward svc/backend-service 5001:5001 -n autoscaling
+
+# 🖥️ Docker Desktop (Windows 11): http://localhost:80 y http://localhost:5001/getMyInfo
 ```
 
-> ⚠️ El JS del frontend hace `fetch('http://localhost:5001/getMyInfo')`. Funciona con `port-forward`/`minikube service`, pero **no** dentro del clúster: el detalle y las soluciones están en el módulo 13, sección *"El detalle del `localhost` en `requests.js`"*.
+Abre la URL que imprime el primer comando **añadiendo `/linktree.html`**:
+
+```text
+http://<IP-del-nodo>:<NodePort>/linktree.html
+```
+
+> 💡 `-n autoscaling` es obligatorio: `minikube` no usa el namespace de kubectl. La página está en `/linktree.html`, no en `/` (ahí sale el `Welcome to nginx!` de la imagen base).
 
 ## 🧯 Troubleshooting
 
@@ -186,10 +193,11 @@ minikube service backend-service      # o: minikube tunnel
 |---------|-------|----------|
 | `NotFound` o no aparece nada en `kubectl get pods` | Estás en otro namespace | `kubectl config set-context --current --namespace=autoscaling` (o `-n autoscaling`) |
 | `ErrImagePull` / `ImagePullBackOff` | La imagen no llegó al nodo (típico: construir con `docker compose build` en vez de la ruta del paso 1) | Repite el paso 1 con **tu** ruta (A: `minikube image build`, B: `docker build`) y luego `kubectl rollout restart deploy/backend-deployment deploy/frontend-deployment` |
+| `403 Forbidden` al abrir `/linktree.html` | Archivos con permisos `600`: el worker de nginx no puede leerlos | `chmod 644 frontend/sitio/*`, reconstruir la imagen y `kubectl rollout restart deploy/frontend-deployment -n autoscaling` |
 | Pods `Running` pero HPA en `TARGETS: <unknown>` | metrics-server sin muestras o no instalado | Espera 1–2 min; si sigue, instálalo según tu entorno (tabla de requisitos) |
 | `kubectl top` → `Metrics API not available` | Sin metrics-server | Igual que arriba |
 | El HPA no escala aunque haya carga | El Pod no declara `resources.requests.cpu` | Revisa el `deployment.yaml` |
-| `EXTERNAL-IP: <pending>` en minikube | El driver `docker` no tiene balanceador | `minikube tunnel` o `minikube service` |
+| `EXTERNAL-IP: <pending>` en minikube | El driver `docker` no tiene balanceador | `minikube tunnel` o `minikube service <svc> -n autoscaling` |
 | El HPA escala pero la web no carga | Sigue la imagen vieja (`:latest`) | Reconstruir + `kubectl rollout restart` (ver [módulo 13](../../13-multi-tier/README.md)) |
 
 ## 🧹 Limpieza

@@ -57,7 +57,7 @@ El curso se ha hecho en dos entornos y **no son intercambiables**:
 | Contexto de kubectl | `minikube` | `docker-desktop` |
 | **metrics-server** | `minikube addons enable metrics-server` | **no viene**: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml` |
 | Imágenes locales | **Ruta A**: `minikube image build` | **Ruta B**: `docker build` (el clúster comparte el almacén) |
-| Navegador para un Service | `minikube service <svc>` o `minikube tunnel` | ya responde en `http://localhost:<puerto>` |
+| Navegador para un Service | `minikube service <svc> -n autoscaling` (minikube no usa el namespace de kubectl) o `minikube tunnel` | ya responde en `http://localhost:<puerto>` |
 | Dashboard | `minikube dashboard` | la UI de Docker Desktop |
 | Entrar al nodo | `minikube ssh` | no aplica: el nodo lo gestiona Docker Desktop |
 

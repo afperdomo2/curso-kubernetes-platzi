@@ -2,7 +2,7 @@
 # BACKEND · Service
 # -----------------------------------------------------------------------------
 # LoadBalancer para poder abrirlo desde el navegador en local:
-#   · minikube: `minikube service backend-service` o `minikube tunnel`
+#   · minikube: `minikube service backend-service -n autoscaling` o `minikube tunnel`
 #   · Docker Desktop: queda en http://localhost:5001
 #
 # En un clúster real esto sería `ClusterIP` + un Ingress delante (ver módulo 13).
