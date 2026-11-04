@@ -2,7 +2,10 @@
 # HPA · Escalado horizontal de `web`
 # -----------------------------------------------------------------------------
 # Mantiene entre 1 y 4 réplicas intentando que el consumo medio de CPU de los
-# Pods se quede en el 20 % de lo que piden (requests.cpu: 1m).
+# Pods se quede en el 50 % de lo que piden (requests.cpu: 20m → 10m).
+#
+# Con estos números el HPA NO escala en reposo (nginx idle usa 1–3m, o sea
+# 5–15 %) y solo reacciona cuando el load-generator mete carga de verdad.
 #
 # Se llama `web-hpa` (app + tipo de política) porque NO es la app: es la regla
 # de escalado que apunta a ella. El Deployment y el Service sí se llaman `web`.
@@ -41,11 +44,12 @@ spec:
         value: 100
         periodSeconds: 30              # como mucho duplica cada 30 s
     scaleDown:
-      stabilizationWindowSeconds: 300  # bajar despacio: ventana de 5 min
+      stabilizationWindowSeconds: 60   # bajar: 60 s en el demo para iterar rápido
+                                       # (en producción el default son 300 s)
   metrics:
   - type: Resource                     # métrica de recursos del Pod (CPU/RAM)
     resource:
       name: cpu
       target:
         type: Utilization              # % medio sobre requests.cpu
-        averageUtilization: 20         # 20 % de 1m = 0,2m → escala con poca carga
+        averageUtilization: 50         # 50 % de 20m = 10m por Pod

@@ -80,7 +80,7 @@ Notas y prácticas del curso de **Kubernetes** de Platzi. El contenido está org
 ├── 📁 15-autoscaling-hpa-vpa/                   # 📈 Autoscaling (HPA y VPA)
 │   ├── 📁 manifests/                            #   Demo 1 (un objeto por archivo)
 │   │   ├── 📄 00-namespace.yaml                 #     Namespace autoscaling
-│   │   ├── 📄 deployment.yaml                   #     Deployment web (nginx, 1m CPU)
+│   │   ├── 📄 deployment.yaml                   #     Deployment web (nginx, 20m CPU)
 │   │   ├── 📄 service.yaml                      #     Service web (ClusterIP)
 │   │   ├── 📄 hpa.yaml                          #     HPA web-hpa (1..4 al 20% de CPU)
 │   │   ├── 📄 pdb.yaml                          #     PodDisruptionBudget web-pdb

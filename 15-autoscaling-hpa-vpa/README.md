@@ -38,9 +38,9 @@ flowchart LR
 | Archivo | Qué crea |
 |---------|----------|
 | [`manifests/00-namespace.yaml`](manifests/00-namespace.yaml) | Namespace `autoscaling` (aísla el módulo del resto del curso) |
-| [`manifests/deployment.yaml`](manifests/deployment.yaml) | Deployment `web` (`nginx:1.14.2`, 2 réplicas, probes y `requests` de 1m) |
+| [`manifests/deployment.yaml`](manifests/deployment.yaml) | Deployment `web` (`nginx:1.14.2`, 2 réplicas, probes y `requests` de 20m) |
 | [`manifests/service.yaml`](manifests/service.yaml) | Service `web` (ClusterIP, puerto con nombre `http`) |
-| [`manifests/hpa.yaml`](manifests/hpa.yaml) | HPA `web-hpa` → 1..4 réplicas al **20 % de CPU**, con `behavior` explícito |
+| [`manifests/hpa.yaml`](manifests/hpa.yaml) | HPA `web-hpa` → 1..4 réplicas al **50 % de CPU**, con `behavior` explícito |
 | [`manifests/pdb.yaml`](manifests/pdb.yaml) | PDB `web-pdb` → `maxUnavailable: 1` (protege los drenados del nodo) |
 | [`manifests/optional/vpa.yaml`](manifests/optional/vpa.yaml) | VPA `web-vpa` (opcional: necesita CRDs) |
 | [`curso-de-docker-fundamentos/`](curso-de-docker-fundamentos/README.md) | Demo 2: la app del módulo 13 + dos HPAs |
@@ -68,7 +68,7 @@ El curso se ha hecho en dos entornos y **no son intercambiables**:
 El HPA no inventa números: los pide a la **Metrics API**, que sirve `metrics-server` leyendo el kubelet de cada nodo. Sin él:
 
 - `kubectl top pods` → `error: Metrics API not available`
-- `kubectl get hpa` → `TARGETS: <unknown>/20%`
+- `kubectl get hpa` → `TARGETS: <unknown>/50%`
 
 ```bash
 kubectl top nodes          # CPU/RAM del nodo
@@ -77,7 +77,9 @@ kubectl top pods           # CPU/RAM de cada Pod
 
 ## 🚀 Demo 1: HPA sobre nginx
 
-Los manifiestos son deliberadamente extremos: piden **1m de CPU** (una milésima de núcleo) para que cualquier petición supere el 20 % objetivo y el escalado se vea en segundos.
+Los números están calibrados para que puedas comprobarlo paso a paso: con **20m de CPU** de `requests`, nginx en reposo consume 1–3m (5–15 % del request) y el HPA **no** escala; solo reacciona cuando el generador de carga lo sube por encima del 50 %.
+
+> ⚠️ Si el `requests.cpu` fuera de 1m (como en la primera versión del módulo), el propio consumo en reposo ya superaría el umbral y verías el HPA escalando sin haber generado carga.
 
 ### Desplegar
 
@@ -98,17 +100,17 @@ El prefijo `00-` del namespace no es decorativo: kubectl aplica los archivos de 
 
 ```text
 NAME      REFERENCE         TARGETS              MINPODS   MAXPODS   REPLICAS
-web-hpa   Deployment/web    cpu: <unknown>/20%   1         4         2
+web-hpa   Deployment/web    cpu: <unknown>/50%   1         4         2
 ```
 
 y después:
 
 ```text
 NAME      REFERENCE         TARGETS       MINPODS   MAXPODS   REPLICAS
-web-hpa   Deployment/web    cpu: 0%/20%   1         4         2
+web-hpa   Deployment/web    cpu: 8%/50%   1         4         2
 ```
 
-> 🔍 El porcentaje es siempre **relativo al `requests` del contenedor**, no al uso del nodo: `1m × 20 % = 0,2m`. Por eso este demo escala con nada de tráfico. Con `requests: 100m` y objetivo 80 % haría falta mucha más carga (es lo que hace la [Demo 2](curso-de-docker-fundamentos/README.md)).
+> 🔍 El porcentaje es siempre **relativo al `requests` del contenedor**, no al uso del nodo: `20m × 50 % = 10m`. Nginx en reposo usa 1–3m (5–15 %), así que **no escala**; el load-generator lo sube por encima de 10m y ahí sí reacciona.
 
 ### Generar carga
 
@@ -120,11 +122,11 @@ kubectl run load-generator --image=busybox:1.36 --restart=Never -- \
 watch -n 5 kubectl get hpa,pods
 ```
 
-En ~40 segundos el HPA decide escalar:
+En 1–2 minutos (metrics-server tarda en reflejar la carga) el HPA decide escalar:
 
 ```text
 NAME      REFERENCE         TARGETS      MINPODS   MAXPODS   REPLICAS
-web-hpa   Deployment/web    cpu: 50%/20%   1         4         4
+web-hpa   Deployment/web    cpu: 150%/50%   1         4         4
 ```
 
 ```text
@@ -147,7 +149,8 @@ behavior:
     stabilizationWindowSeconds: 0     # subir rápido
     policies: [{type: Percent, value: 100, periodSeconds: 30}]
   scaleDown:
-    stabilizationWindowSeconds: 300   # bajar lento (5 min)
+    stabilizationWindowSeconds: 60    # bajar con 1 min de margen (demo)
+                                      # en producción se usa 300 (5 min)
 ```
 
 ### Volver al estado inicial
@@ -156,14 +159,16 @@ behavior:
 kubectl delete pod load-generator
 ```
 
-El descenso **no es inmediato**: se respeta la ventana de `scaleDown` (5 minutos) para no oscilar con cada bache de tráfico. Mientras dura:
+El descenso **no es inmediato**: se respeta la ventana de `scaleDown` (60 s en este demo) para no oscilar con cada bache de tráfico. Mientras dura:
 
 ```bash
 kubectl describe hpa web-hpa | grep -A2 Conditions
 # AbleToScale  True  ScaleDownStabilized  recent recommendations were higher…
 ```
 
-En la práctica del curso tardó **~10 minutos** en volver a `minReplicas: 1` (la ventana de 5 min más el retraso de las métricas).
+En la práctica tardó **~1–2 minutos** en volver a `minReplicas: 1` (los 60 s de la ventana más el retraso de las métricas).
+
+> 🏭 **En producción el valor por defecto es 300 s (5 min)**: el freno es más largo para no reaccionar a baches. Aquí se baja a 60 s solo para poder repetir el laboratorio sin esperar.
 
 ## 🧱 VPA (opcional, requiere instalar CRDs)
 
@@ -250,24 +255,24 @@ Pasos completos en **[curso-de-docker-fundamentos/README.md](curso-de-docker-fun
 | `revisionHistoryLimit: 3` | Deployments | No acumular ReplicaSets de rollouts viejos |
 | `minReadySeconds` / `progressDeadlineSeconds` | Deployments | Rollouts predecibles y con límite de tiempo |
 | `automountServiceAccountToken: false` | Pods | La app no habla con la API: no le des token |
-| `behavior` explícito | HPAs | Deja escrito el freno de bajada en vez de depender del default |
+| `behavior` explícito | HPAs | Deja escrito el freno de bajada: 60 s en este demo, 300 s (default) en producción |
 | `PodDisruptionBudget` | `pdb.yaml` | Un drain no se lleva todas las réplicas a la vez |
 | Namespace propio | `00-namespace.yaml` | Evita chocar con los recursos del módulo 13 |
 | Nombres por función | Todos | El workload lleva el nombre de la app (`web`); las políticas, `app + tipo` (`web-hpa`, `web-vpa`, `web-pdb`). Nunca el kind en el workload: `web-deployment` ❌ |
 
-> 🧭 **Deuda consciente** (para una siguiente iteración, no para este módulo): `LoadBalancer` en vez de `ClusterIP` + Ingress; `nginx:1.14.2` está EOL; `securityContext` con `runAsNonRoot`/`readOnlyRootFilesystem` requiere la imagen `nginx-unprivileged`; y los `requests` de 1m son solo para la demo.
+> 🧭 **Deuda consciente** (para una siguiente iteración, no para este módulo): `LoadBalancer` en vez de `ClusterIP` + Ingress; `nginx:1.14.2` está EOL; `securityContext` con `runAsNonRoot`/`readOnlyRootFilesystem` requiere la imagen `nginx-unprivileged`; y `nginx:1.14.2` está fijado sin digest.
 
 ## 🧯 Troubleshooting
 
 | Síntoma | Causa probable | Solución |
 |---------|----------------|----------|
 | `error: the server doesn't have a resource type "hpa"` o `NotFound` | Estás en otro namespace | `kubectl config set-context --current --namespace=autoscaling` o añade `-n autoscaling` |
-| `TARGETS: <unknown>/20%` en los primeros minutos | metrics-server aún no tiene muestras de esos Pods | Espera 1–3 min; si sigue, mira el evento del HPA |
+| `TARGETS: <unknown>/50%` en los primeros minutos | metrics-server aún no tiene muestras de esos Pods | Espera 1–3 min; si sigue, mira el evento del HPA |
 | `TARGETS: <unknown>` permanente + `FailedGetResourceMetric` | metrics-server no instalado o no listo | `kubectl get pods -n kube-system \| grep metrics-server` (minikube: `minikube addons enable metrics-server`) |
 | `kubectl top` → `Metrics API not available` | Sin Metrics API | Igual que el anterior |
 | `x509: cannot validate certificate for …` | metrics-server no confía en el certificado del kubelet | Añade `--kubelet-insecure-tls` al Deployment de metrics-server |
 | El HPA no escala aunque haya carga | Falta `resources.requests.cpu` en el contenedor | Revisa el `deployment.yaml` |
-| El HPA se queda en `REPLICAS: 4` y la app va lenta | Límite de CPU de 1m (demo) | Sube los `resources` o usa la Demo 2 |
+| El HPA se queda en `REPLICAS: 4` y la app va lenta | El límite de CPU (100m) y/o el objetivo son muy exigentes | Sube los `resources` o usa la Demo 2 |
 | `no matches for kind "VerticalPodAutoscaler"` | Faltan las CRDs del VPA | `./hack/vpa-up.sh` |
 | `minikube: command not found` en Windows | Ese flujo es de minikube; tu clúster es Docker Desktop | Usa solo `kubectl` (y `docker build`) |
 

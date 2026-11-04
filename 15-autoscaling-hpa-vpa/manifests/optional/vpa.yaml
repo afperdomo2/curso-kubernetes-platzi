@@ -51,9 +51,9 @@ spec:
     containerPolicies:
     - containerName: '*'              # aplica a todos los contenedores del Pod
       minAllowed:                     # suelo que el VPA no bajará
-        cpu: 1m
-        memory: 4Mi
+        cpu: 10m
+        memory: 16Mi
       maxAllowed:                     # techo que el VPA no superará
-        cpu: 8m                       # ⚠️ valores de juguete: en real, 500m–2 CPU
-        memory: 32Mi
+        cpu: 100m
+        memory: 128Mi
       controlledResources: ["cpu", "memory"]   # métricas que puede recomendar/ajustar
